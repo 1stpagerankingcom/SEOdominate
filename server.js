@@ -1538,6 +1538,58 @@ app.get('/api/reviews/public', (req, res) => {
   res.json({ reviews });
 });
 
+// ===== PUBLIC CITY LEADERBOARD =====
+// Top-scoring audited businesses grouped by city. Reads persisted audits (Teable-backed).
+app.get('/api/leaderboard', async (req, res) => {
+  try {
+    const cfg = req.cfg || CONFIG;
+    const cityFilter = String(req.query.city || '').trim().toLowerCase();
+    const limit = Math.min(50, parseInt(req.query.limit || '10', 10) || 10);
+
+    let audits;
+    const local = loadAudits();
+    const localList = Object.values(local).filter(r => !r.demo && r.business && r.location);
+    if (localList.length) audits = localList;
+    else audits = await listAuditsFromTeable(cfg);
+
+    const byCity = new Map();
+    for (const a of audits) {
+      const city = String(a.location || '').trim();
+      if (!city) continue;
+      if (cityFilter && !city.toLowerCase().includes(cityFilter)) continue;
+      const entry = {
+        business: a.business,
+        location: city,
+        score: a.gbp?.score || 0,
+        grade: a.gbp?.grade || 'D',
+        atStake: a.gbp?.revenue?.atStake || 0,
+        aiFound: (a.gbp?.aiVisibility || []).filter(x => x.found).length,
+        aiTotal: (a.gbp?.aiVisibility || []).length,
+        website: a.website || null,
+        auditId: a.auditId,
+        timestamp: a.timestamp,
+      };
+      if (!byCity.has(city)) byCity.set(city, []);
+      byCity.get(city).push(entry);
+    }
+
+    const cities = [...byCity.entries()]
+      .map(([city, list]) => ({
+        city,
+        count: list.length,
+        avgScore: Math.round(list.reduce((s, x) => s + x.score, 0) / list.length),
+        top: list.sort((x, y) => y.score - x.score || y.atStake - x.atStake).slice(0, limit),
+      }))
+      .sort((x, y) => y.count - x.count || y.avgScore - x.avgScore);
+
+    res.json({ success: true, total: audits.length, cityFilter: cityFilter || null, cities });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/leaderboard', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'leaderboard.html'));
+});
+
 app.get('/api/reviews', requireAuth, (req, res) => {
   const { status, agency } = req.query;
   let reviews = loadReviews().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));

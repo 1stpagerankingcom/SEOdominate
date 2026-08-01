@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Local Business SEO Leaderboard — SEODominate</title>
+<meta name="description" content="See which local businesses rank highest on Google Business Profiles in your city. Live audit scores, revenue opportunity and AI visibility.">
+<meta name="theme-color" content="#6c5ce7">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Local Business SEO Leaderboard — SEODominate">
+<meta property="og:description" content="Top-scoring Google Business Profiles by city. Optimization scores from real audits.">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f6f5ff; color: #1a1a2e; }
+  header { background: linear-gradient(135deg, #6c5ce7, #8b5cf6); color: #fff; padding: 40px 20px 32px; text-align: center; }
+  header h1 { font-size: 28px; margin-bottom: 6px; }
+  header p { opacity: .9; font-size: 15px; }
+  .wrap { max-width: 900px; margin: 24px auto; padding: 0 16px 48px; }
+  .search { display: flex; gap: 10px; margin-bottom: 22px; }
+  .search input { flex: 1; padding: 12px 16px; font-size: 15px; border: 1px solid #d8d2f7; border-radius: 10px; outline: none; }
+  .search input:focus { border-color: #6c5ce7; box-shadow: 0 0 0 3px #e9e6fc; }
+  .search button { padding: 12px 22px; font-size: 15px; font-weight: 700; background: #6c5ce7; color: #fff; border: none; border-radius: 10px; cursor: pointer; }
+  .search button:hover { filter: brightness(1.07); }
+  .city-card { background: #fff; border: 1px solid #e9e6fc; border-radius: 14px; margin-bottom: 20px; padding: 20px; }
+  .city-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
+  .city-head h2 { font-size: 19px; }
+  .city-head span { font-size: 13px; color: #6b7280; }
+  .rank-row { display: flex; align-items: center; gap: 12px; padding: 11px 8px; border-bottom: 1px solid #f1eefb; }
+  .rank-row:last-child { border-bottom: none; }
+  .rank { font-size: 13px; font-weight: 800; color: #6c5ce7; width: 28px; }
+  .biz-info { flex: 1; min-width: 0; }
+  .biz-name { font-weight: 700; font-size: 15px; }
+  .biz-name a { color: inherit; text-decoration: none; }
+  .biz-name a:hover { color: #6c5ce7; }
+  .biz-meta { font-size: 12.5px; color: #6b7280; margin-top: 2px; }
+  .score-pill { min-width: 58px; text-align: center; }
+  .score-pill .num { font-size: 19px; font-weight: 800; }
+  .score-pill .g { font-size: 11px; color: #6b7280; }
+  .score-high { color: #10b981; } .score-mid { color: #f59e0b; } .score-low { color: #ef4444; }
+  .ai-tag { font-size: 11.5px; color: #6c5ce7; background: #e9e6fc; padding: 3px 8px; border-radius: 20px; white-space: nowrap; }
+  .empty { text-align: center; color: #6b7280; padding: 40px 0; }
+  .empty .icon { font-size: 40px; margin-bottom: 10px; }
+  .spinner { display: inline-block; width: 26px; height: 26px; border: 3px solid #e9e6fc; border-top-color: #6c5ce7; border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  footer { text-align: center; font-size: 13px; color: #6b7280; padding: 20px; }
+  footer a { color: #6c5ce7; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Local Business SEO Leaderboard</h1>
+  <p>Top-scoring Google Business Profiles by city, from real free audits.</p>
+</header>
+<div class="wrap">
+  <div class="search">
+    <input type="text" id="city-input" placeholder="Filter by city, e.g. Austin, TX">
+    <button id="search-btn">Search</button>
+  </div>
+  <div id="list"><div class="empty"><div class="spinner"></div><p>Loading leaderboard…</p></div></div>
+</div>
+<footer><a href="/">SEODominate</a> — Get your free Google Business Profile audit in 60 seconds.</footer>
+<script>
+(function () {
+  var listEl = document.getElementById('list');
+  var input = document.getElementById('city-input');
+  var btn = document.getElementById('search-btn');
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function scoreClass(s) { return s >= 80 ? 'score-high' : s >= 60 ? 'score-mid' : 'score-low'; }
+
+  function render(data) {
+    if (!data.cities.length) {
+      listEl.innerHTML = '<div class="empty"><div class="icon">&#128205;</div><p>No audited businesses found yet. Run a <a href="/" style="color:#6c5ce7;">free audit</a> to join the leaderboard!</p></div>';
+      return;
+    }
+    listEl.innerHTML = data.cities.map(function (c) {
+      var rows = c.top.map(function (b, i) {
+        return '<div class="rank-row">' +
+          '<div class="rank">#' + (i + 1) + '</div>' +
+          '<div class="biz-info">' +
+            '<div class="biz-name"><a href="/report/' + esc(b.auditId) + '">' + esc(b.business) + '</a></div>' +
+            '<div class="biz-meta">' + (b.website ? esc(b.website) : '') + '</div>' +
+          '</div>' +
+          '<div class="ai-tag">AI ' + b.aiFound + '/' + b.aiTotal + '</div>' +
+          '<div class="score-pill"><div class="num ' + scoreClass(b.score) + '">' + b.score + '</div><div class="g">' + esc(b.grade) + '</div></div>' +
+        '</div>';
+      }).join('');
+      return '<div class="city-card">' +
+        '<div class="city-head"><h2>' + esc(c.city) + '</h2><span>' + c.count + ' audited · avg ' + c.avgScore + '%</span></div>' +
+        rows + '</div>';
+    }).join('');
+  }
+
+  function load() {
+    var city = input.value.trim();
+    listEl.innerHTML = '<div class="empty"><div class="spinner"></div><p>Loading leaderboard…</p></div>';
+    var url = '/api/leaderboard' + (city ? '?city=' + encodeURIComponent(city) : '');
+    fetch(url).then(function (r) { return r.json(); }).then(function (data) {
+      if (data.success) render(data);
+      else listEl.innerHTML = '<div class="empty"><p>Could not load leaderboard.</p></div>';
+    }).catch(function () {
+      listEl.innerHTML = '<div class="empty"><p>Could not load leaderboard.</p></div>';
+    });
+  }
+
+  btn.addEventListener('click', load);
+  input.addEventListener('keydown', function (e) { if (e.key === 'Enter') load(); });
+  load();
+})();
+</script>
+</body>
+</html>
