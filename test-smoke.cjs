@@ -18,7 +18,7 @@ function req(port, method, pathname, body, headers) {
 
 function loadApp(env) {
   // Blank external provider keys so smoke tests run in mock/simulated mode
-  ['RECAPTCHA_SITE_KEY','RECAPTCHA_SECRET_KEY','RECAPTCHA_PROJECT_ID','GOOGLE_CLOUD_API_KEY','GOOGLE_PLACES_API_KEY','OPENROUTER_KEY','DATAFORSEO_LOGIN','DATAFORSEO_PASSWORD','SMTP_HOST','SMTP_PASS','RANKNIBBLER_API_KEY'].forEach(k => {
+  ['RECAPTCHA_SITE_KEY','RECAPTCHA_SECRET_KEY','RECAPTCHA_PROJECT_ID','GOOGLE_CLOUD_API_KEY','GOOGLE_PLACES_API_KEY','OPENROUTER_KEY','DATAFORSEO_LOGIN','DATAFORSEO_PASSWORD','SMTP_HOST','SMTP_PASS','RANKNIBBLER_API_KEY','TEABLE_API_TOKEN'].forEach(k => {
     if (!(k in env)) process.env[k] = '';
   });
   Object.keys(env).forEach(k => process.env[k] = env[k]);
