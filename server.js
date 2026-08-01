@@ -1351,6 +1351,45 @@ async function sendReauditAlertEmail(prev, next, diff, cfg = CONFIG) {
   });
 }
 
+async function sendReviewRequestEmail(report, cfg = CONFIG) {
+  if (!cfg.smtpHost) return;
+  const nodemailer = require('nodemailer');
+  const transporter = nodemailer.createTransport({
+    host: cfg.smtpHost,
+    port: parseInt(cfg.smtpPort || '587'),
+    secure: cfg.smtpSecure === true || cfg.smtpSecure === 'true',
+    auth: cfg.smtpUser ? { user: cfg.smtpUser, pass: cfg.smtpPass } : undefined,
+  });
+  const brand = cfg.brandName;
+  const accent = cfg.brandColor;
+  const logo = cfg.brandLogoUrl;
+  const reportLink = `${cfg.appUrl || 'https://seodominate.org'}/report/${report.auditId}`;
+  const html = `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f6f5ff;padding:24px;">
+    <div style="max-width:560px;margin:auto;background:#fff;border-radius:16px;padding:32px;border:1px solid #e6e2ff;">
+      ${logo ? `<img src="${logo}" alt="${brand}" style="max-height:44px;margin-bottom:16px;" />` : `<h2 style="color:${accent};margin:0 0 8px;">${brand}</h2>`}
+      <h3 style="color:#222;margin:0 0 8px;">Reviews are your fastest ranking lever</h3>
+      <p style="color:#555;">Hi there — thanks for running your free audit for <b>${report.business}</b> in ${report.location}.</p>
+      <p style="color:#555;">One of the quickest ways to outrank your competitors is a steady stream of fresh Google reviews. Businesses with more reviews than their local competitors rank higher and win more clicks.</p>
+      <div style="background:#f1efff;border-radius:12px;padding:18px;margin:18px 0;">
+        <div style="font-weight:bold;color:#222;margin-bottom:6px;">3 easy ways to get more reviews:</div>
+        <div style="color:#555;font-size:14px;line-height:1.7;">
+          1. Send your happy customers a short text with your Google review link.<br>
+          2. Print a QR code that opens your review form and put it on your counter.<br>
+          3. Add a "Leave us a review" button to your email signature and website.
+        </div>
+      </div>
+      <p style="color:#555;">Your full audit with prioritized fixes is always here:</p>
+      <a href="${reportLink}" style="display:inline-block;background:${accent};color:#fff;text-decoration:none;padding:14px 24px;border-radius:10px;font-weight:bold;">Reopen My Audit Report</a>
+      <p style="color:#aaa;font-size:12px;margin-top:24px;">Audit ID: ${report.auditId}</p>
+    </div></body></html>`;
+  await transporter.sendMail({
+    from: cfg.fromEmail || `${brand} <no-reply@seodominate.org>`,
+    to: report.email,
+    subject: `Win more reviews for ${report.business} — quick tips inside`,
+    html,
+  });
+}
+
 function notifyLeadCapture(report, cfg = CONFIG) {
   const payload = {
     type: 'gmb_audit', email: report.email, business: report.business, location: report.location,
@@ -1491,6 +1530,8 @@ async function generateLiveAuditReport(business, location, email, keywords, webs
   await persistAudit(report, cfg).catch(e => console.warn('[persist audit]', e.message));
   notifyLeadCapture(report, cfg);
   sendAuditEmail(report, cfg).catch(() => {});
+  // Review-request follow-up (fire alongside the audit email; both are non-blocking)
+  sendReviewRequestEmail(report, cfg).catch(() => {});
 
   return report;
 }
