@@ -1193,6 +1193,105 @@ async function sendAuditEmail(report, cfg = CONFIG) {
   });
 }
 
+async function listAuditsFromTeable(cfg = CONFIG) {
+  if (!cfg.teableToken || !cfg.teableAuditsTableId) return [];
+  const payloadField = await teableResolveField(cfg, cfg.teableAuditsTableId, TEABLE_AUDIT_MAP.payload);
+  if (!payloadField) return [];
+  const recs = await teableList(cfg, cfg.teableAuditsTableId);
+  const out = [];
+  for (const rec of recs) {
+    let raw = rec.fields?.[payloadField];
+    if (typeof raw === 'string') { try { raw = JSON.parse(raw); } catch { raw = null; } }
+    if (raw && raw.auditId) out.push(raw);
+  }
+  return out;
+}
+
+function computeReauditDiff(prev, next) {
+  const prevScore = prev?.gbp?.score ?? 0;
+  const nextScore = next?.gbp?.score ?? 0;
+  const prevAtStake = prev?.gbp?.revenue?.atStake ?? 0;
+  const nextAtStake = next?.gbp?.revenue?.atStake ?? 0;
+  const prevRanks = {};
+  for (const h of (prev?.gbp?.heatmaps || [])) prevRanks[h.keyword] = h.averageRank;
+  const nextRanks = {};
+  for (const h of (next?.gbp?.heatmaps || [])) nextRanks[h.keyword] = h.averageRank;
+  const rankChanges = Object.keys(nextRanks).map(kw => {
+    const from = prevRanks[kw];
+    const to = nextRanks[kw];
+    if (from == null || to == null) return null;
+    return { keyword: kw, from, to, delta: +(from - to).toFixed(1) };
+  }).filter(Boolean);
+  const prevAI = new Set((prev?.gbp?.aiVisibility || []).filter(a => a.found).map(a => a.platform));
+  const nextAI = new Set((next?.gbp?.aiVisibility || []).filter(a => a.found).map(a => a.platform));
+  const aiGained = [...nextAI].filter(p => !prevAI.has(p));
+  const aiLost = [...prevAI].filter(p => !nextAI.has(p));
+  const scoreDelta = +(nextScore - prevScore).toFixed(0);
+  const atStakeDelta = nextAtStake - prevAtStake;
+  return { scoreDelta, score: nextScore, prevScore, atStakeDelta, atStake: nextAtStake, rankChanges, aiGained, aiLost };
+}
+
+async function sendReauditAlertEmail(prev, next, diff, cfg = CONFIG) {
+  if (!cfg.smtpHost) return;
+  const nodemailer = require('nodemailer');
+  const transporter = nodemailer.createTransport({
+    host: cfg.smtpHost,
+    port: parseInt(cfg.smtpPort || '587'),
+    secure: cfg.smtpSecure === true || cfg.smtpSecure === 'true',
+    auth: cfg.smtpUser ? { user: cfg.smtpUser, pass: cfg.smtpPass } : undefined,
+  });
+  const link = `${cfg.appUrl || 'https://seodominate.org'}/report/${next.auditId}`;
+  const brand = cfg.brandName;
+  const accent = cfg.brandColor;
+  const scoreDir = diff.scoreDelta >= 0 ? 'up' : 'down';
+  const scoreArrow = scoreDir === 'up' ? '&#9650;' : '&#9660;';
+  const scoreColor = scoreDir === 'up' ? '#10b981' : '#ef4444';
+  const atStakeDir = diff.atStakeDelta >= 0 ? 'up' : 'down';
+  const atStakeArrow = atStakeDir === 'up' ? '&#9650;' : '&#9660;';
+  const atStakeColor = atStakeDir === 'up' ? '#ef4444' : '#10b981';
+  const rankRows = diff.rankChanges.length
+    ? diff.rankChanges.map(r => {
+        const d = r.delta >= 0 ? `+${r.delta} (&#9650; improved)` : `${r.delta} (&#9660; slipped)`;
+        const c = r.delta >= 0 ? '#10b981' : '#ef4444';
+        return `<tr><td style="padding:8px;border-bottom:1px solid #eee;">${r.keyword}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:center;">#${r.from}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:center;">#${r.to}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:center;color:${c};font-weight:bold;">${d}</td></tr>`;
+      }).join('')
+    : `<tr><td colspan="4" style="padding:10px;color:#888;text-align:center;">No ranking change detected this cycle.</td></tr>`;
+  const aiLine = [];
+  if (diff.aiGained.length) aiLine.push(`Gained AI visibility on <b>${diff.aiGained.join(', ')}</b>`);
+  if (diff.aiLost.length) aiLine.push(`Lost AI visibility on <b>${diff.aiLost.join(', ')}</b>`);
+  const html = `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f6f5ff;padding:24px;">
+    <div style="max-width:560px;margin:auto;background:#fff;border-radius:16px;padding:32px;border:1px solid #e6e2ff;">
+      <h2 style="color:${accent};margin:0 0 8px;">${brand}</h2>
+      <h3 style="color:#222;margin:0 0 8px;">Your Local Ranking Update: ${next.business}</h3>
+      <p style="color:#555;">${next.location} &mdash; re-audited ${new Date(next.timestamp).toLocaleDateString()}</p>
+      <div style="display:flex;gap:12px;margin:20px 0;flex-wrap:wrap;">
+        <div style="flex:1;min-width:120px;background:#f1efff;border-radius:12px;padding:16px;text-align:center;">
+          <div style="font-size:28px;font-weight:bold;color:${accent};">${diff.score}<small style="font-size:14px;">/${diff.prevScore}</small></div>
+          <div style="color:#888;font-size:12px;">Score ${scoreArrow} <span style="color:${scoreColor};">${diff.scoreDelta >= 0 ? '+' : ''}${diff.scoreDelta}</span></div>
+        </div>
+        <div style="flex:1;min-width:120px;background:#fff7ed;border-radius:12px;padding:16px;text-align:center;">
+          <div style="font-size:20px;font-weight:bold;color:#f97316;">$${diff.atStake.toLocaleString()}</div>
+          <div style="color:#888;font-size:12px;">Revenue at Stake ${atStakeArrow} <span style="color:${atStakeColor};">$${Math.abs(diff.atStakeDelta).toLocaleString()}</span></div>
+        </div>
+      </div>
+      <h4 style="color:#222;margin:16px 0 8px;">Keyword Rankings (avg local position)</h4>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        <thead><tr style="background:#f8f8fc;"><th style="padding:8px;text-align:left;">Keyword</th><th style="padding:8px;">Before</th><th style="padding:8px;">Now</th><th style="padding:8px;">Change</th></tr></thead>
+        <tbody>${rankRows}</tbody>
+      </table>
+      ${aiLine.length ? `<p style="color:#555;margin-top:14px;">${aiLine.join('<br>')}</p>` : ''}
+      <p style="color:#555;">See your updated full report with competitors, heatmaps and prioritized fixes:</p>
+      <a href="${link}" style="display:inline-block;background:${accent};color:#fff;text-decoration:none;padding:14px 24px;border-radius:10px;font-weight:bold;">View Updated Report</a>
+      <p style="color:#aaa;font-size:12px;margin-top:24px;">Audit ID: ${next.auditId}</p>
+    </div></body></html>`;
+  await transporter.sendMail({
+    from: cfg.fromEmail || `${brand} <no-reply@seodominate.org>`,
+    to: next.email,
+    subject: `Your Local Ranking Update: ${next.business} (Score ${diff.score})`,
+    html,
+  });
+}
+
 function notifyLeadCapture(report, cfg = CONFIG) {
   const payload = {
     type: 'gmb_audit', email: report.email, business: report.business, location: report.location,
@@ -1652,6 +1751,61 @@ app.get('/api/agency/me/audits', requireAgency, async (req, res) => {
       timestamp: r.timestamp, website: r.website || null,
     }));
   res.json({ success: true, audits, total: audits.length });
+});
+
+// ===== RE-AUDIT + RANKING-CHANGE ALERTS =====
+// Re-audit a previous audit by ID, diff rankings/score/AI, email the changes, persist the new report.
+app.post('/api/reaudit', async (req, res) => {
+  try {
+    const { auditId } = req.body || {};
+    if (!auditId) return res.status(400).json({ error: 'auditId required' });
+    const cfg = req.cfg || CONFIG;
+    const prev = await getAudit(auditId);
+    if (!prev) return res.status(404).json({ error: 'Report not found' });
+    if (prev.demo) return res.status(400).json({ error: 'Demo reports cannot be re-audited' });
+    if (!prev.email || !prev.email.includes('@')) return res.status(400).json({ error: 'Original audit has no email to alert' });
+
+    const next = await generateLiveAuditReport(prev.business, prev.location, prev.email, prev.keywords || [], prev.website || '', cfg, prev.agencySlug || null);
+    const diff = computeReauditDiff(prev, next);
+    if (cfg.smtpHost) sendReauditAlertEmail(prev, next, diff, cfg).catch(e => console.warn('[reaudit email]', e.message));
+    res.json({ success: true, diff, report: next });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Scheduled re-audits: cron-friendly endpoint. Picks audits needing re-audit (oldest first, respecting per-audit cadence).
+// Trigger daily via Vercel cron: GET /api/reaudit/cron?key=<MANAGER_TOKEN>
+app.get('/api/reaudit/cron', async (req, res) => {
+  try {
+    if (req.query.key !== AUTH_TOKEN) return res.status(401).json({ error: 'Unauthorized' });
+    const cfg = req.cfg || CONFIG;
+    const days = Math.max(1, parseInt(req.query.days || '7', 10) || 7);
+    const cutoff = Date.now() - days * 86400000;
+    const max = Math.min(5, parseInt(req.query.max || '1', 10) || 1);
+
+    // Candidates: real (non-demo) audits older than the cutoff, with an email, not agency-tied (platform leads)
+    let candidates = [];
+    const local = loadAudits();
+    const localList = Object.values(local).filter(r => !r.demo);
+    if (localList.length) candidates = localList;
+    else candidates = await listAuditsFromTeable(cfg);
+    const due = candidates
+      .filter(r => r.email && r.email.includes('@') && new Date(r.timestamp).getTime() < cutoff && new Date(r.timestamp).getTime() < Date.now() - days * 86400000)
+      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+      .slice(0, max);
+
+    const results = [];
+    for (const prev of due) {
+      try {
+        const next = await generateLiveAuditReport(prev.business, prev.location, prev.email, prev.keywords || [], prev.website || '', cfg, prev.agencySlug || null);
+        const diff = computeReauditDiff(prev, next);
+        if (cfg.smtpHost) sendReauditAlertEmail(prev, next, diff, cfg).catch(e => console.warn('[reaudit email]', e.message));
+        results.push({ auditId: prev.auditId, status: 'reaudited', diff });
+      } catch (e) {
+        results.push({ auditId: prev.auditId, status: 'error', message: e.message });
+      }
+    }
+    res.json({ success: true, processed: results.length, results });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 if (!process.env.VERCEL) {
