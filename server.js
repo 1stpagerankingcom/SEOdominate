@@ -3,6 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
 const { generateReportPdf } = require('./pdf');
+const stripeBilling = require('./stripe');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
@@ -310,6 +311,49 @@ const auditLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// ===== BACKGROUND AUDIT QUEUE =====
+// Serverless-safe async audit: enqueue returns a jobId instantly; the client polls
+// status until 'done'. The job runs in-process (same warm invocation), so a polled
+// result is available within ~25s. For durable cross-cold-start queues (multiple
+// concurrent workers, retries across restarts), the SAME generateLiveAuditReport is
+// called by /api/reaudit/cron — point an external scheduler there daily. On Vercel
+// Hobby this in-memory queue covers the interactive use case; Vercel Pro cron + a
+// persisted queue would be the production evolution (see stripe.js pattern).
+const auditJobs = new Map(); // jobId -> { status, report?, error?, createdAt, updatedAt, meta }
+const QUEUE_JOB_TTL_MS = 30 * 60 * 1000;
+function pruneAuditJobs() {
+  const now = Date.now();
+  for (const [id, j] of auditJobs) {
+    if (now - j.updatedAt > QUEUE_JOB_TTL_MS) auditJobs.delete(id);
+  }
+}
+async function enqueueAuditJob({ business, location, email, website, keywords, demo, cfg, agencySlug }) {
+  const jobId = 'JOB-' + crypto.randomUUID().slice(0, 8).toUpperCase();
+  const job = {
+    status: 'queued', business, location, email, website: website || '', keywords: keywords || [],
+    demo: !!demo, agencySlug: agencySlug || null, createdAt: new Date().toISOString(), updatedAt: Date.now(),
+  };
+  auditJobs.set(jobId, job);
+  // Kick off immediately (in-process); the caller polls /status.
+  (async () => {
+    try {
+      job.status = 'running';
+      job.updatedAt = Date.now();
+      const report = job.demo
+        ? (() => { const r = generateAuditReport(business.trim(), location.trim(), email.trim(), keywords || []); r.auditId = 'demo-' + crypto.createHash('md5').update(Date.now().toString()).digest('hex').substring(0, 8).toUpperCase(); r.demo = true; r.agencySlug = agencySlug; r.keywords = keywords && keywords.length ? keywords : [business.trim().toLowerCase().split(/\s+/)[0]]; r.sources = { gbp: 'demo', revenue: 'demo', competitors: 'demo', ai: 'demo', heatmaps: 'demo', aeo: 'demo', geo: 'demo', summary: 'demo' }; return r; })()
+        : await generateLiveAuditReport(business.trim(), location.trim(), email.trim(), keywords || [], (website || '').trim(), cfg || CONFIG, agencySlug);
+      job.status = 'done';
+      job.report = report;
+      job.updatedAt = Date.now();
+    } catch (e) {
+      job.status = 'error';
+      job.error = e.message;
+      job.updatedAt = Date.now();
+    }
+  })();
+  return jobId;
+}
 
 const reviewLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -1748,6 +1792,32 @@ app.post('/api/gmb-audit', auditLimiter, honeypotCheck, verifyRecaptcha, async (
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Async audit queue: POST returns immediately with a jobId; poll GET /api/audit/queue/:jobId
+app.post('/api/audit/queue', auditLimiter, honeypotCheck, verifyRecaptcha, async (req, res) => {
+  try {
+    const { business, location, email, keywords, website, demo } = req.body || {};
+    if (!business) return res.status(400).json({ error: 'Business name required' });
+    if (!location) return res.status(400).json({ error: 'Location required' });
+    if (!email?.includes('@')) return res.status(400).json({ error: 'Valid email required' });
+    pruneAuditJobs();
+    const cfg = req.cfg || CONFIG;
+    const jobId = await enqueueAuditJob({
+      business, location, email, website, keywords: keywords || [],
+      demo: !!(demo || cfg.demoMode), cfg, agencySlug: req.agencySlug || null,
+    });
+    res.json({ success: true, jobId, status: 'queued' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/audit/queue/:jobId', async (req, res) => {
+  const job = auditJobs.get(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+  const { report, ...safe } = job;
+  if (job.status === 'done') safe.report = report;
+  if (job.status === 'error') safe.error = job.error;
+  res.json({ success: true, job: safe });
+});
+
 // Shareable report lookup
 app.get('/api/report/:auditId', async (req, res) => {
   try {
@@ -1976,6 +2046,35 @@ app.get('/api/reaudit/cron', async (req, res) => {
     }
     res.json({ success: true, processed: results.length, results });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ===== BILLING (Stripe scaffold — inactive until STRIPE_SECRET_KEY is set) =====
+app.post('/api/billing/checkout', requireAgency, async (req, res) => {
+  try {
+    if (!stripeBilling.isConfigured()) return res.status(501).json({ error: 'Billing is not configured yet.' });
+    const a = req.agencyAuth;
+    const { email } = req.body || {};
+    const session = await stripeBilling.createCheckoutSession({
+      email: email || a.email,
+      agencyId: a.id,
+      successUrl: `${CONFIG.appUrl || 'https://seodominate.vercel.app'}/agency?billing=success`,
+      cancelUrl: `${CONFIG.appUrl || 'https://seodominate.vercel.app'}/agency?billing=cancelled`,
+    });
+    if (!session) return res.status(500).json({ error: 'Could not create checkout session.' });
+    res.json({ success: true, url: session.url });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/billing/webhook', async (req, res) => {
+  try {
+    // NOTE: for exact Stripe signature verification, mount this route with express.raw({type:'application/json'})
+    // (see stripe.js). The scaffold stringifies the parsed body, which works for hand-testing.
+    const payload = JSON.stringify(req.body);
+    const signature = req.headers['stripe-signature'];
+    const result = await stripeBilling.handleWebhookEvent(payload, signature);
+    if (!result) return res.status(501).json({ error: 'Billing is not configured yet.' });
+    res.json(result);
+  } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
 if (!process.env.VERCEL) {
