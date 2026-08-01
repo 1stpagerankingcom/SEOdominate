@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Free GMB Audit Widget</title>
+<style>
+  :root {
+    --primary: #6c5ce7;
+    --primary-soft: #e9e6fc;
+    --bg: #ffffff;
+    --card: #ffffff;
+    --text: #1a1a2e;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --success: #10b981;
+    --danger: #ef4444;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: transparent; color: var(--text); }
+  .widget {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.06);
+  }
+  .widget-title { font-size: 17px; font-weight: 700; margin-bottom: 2px; line-height: 1.3; }
+  .widget-sub { font-size: 12.5px; color: var(--muted); margin-bottom: 14px; }
+  .field { margin-bottom: 10px; }
+  .field label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
+  .field input {
+    width: 100%;
+    padding: 9px 11px;
+    font-size: 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .field input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+  .btn {
+    width: 100%;
+    padding: 11px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    background: var(--primary);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: filter .15s, transform .05s;
+  }
+  .btn:hover { filter: brightness(1.07); }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: .65; cursor: wait; }
+  .trust { font-size: 11.5px; color: var(--muted); text-align: center; margin-top: 9px; }
+  .result { text-align: center; padding: 6px 0 2px; }
+  .score-ring {
+    width: 118px; height: 118px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 8px auto 6px;
+    position: relative;
+    background: conic-gradient(var(--score-color, var(--success)) calc(var(--score) * 1%), var(--border) 0);
+  }
+  .score-ring::before {
+    content: "";
+    position: absolute; inset: 9px;
+    background: var(--card);
+    border-radius: 50%;
+  }
+  .score-val { position: relative; font-size: 30px; font-weight: 800; }
+  .score-val small { font-size: 14px; font-weight: 600; }
+  .result h3 { font-size: 16px; margin: 6px 0 3px; }
+  .result p { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+  .link {
+    display: inline-block;
+    font-size: 14px; font-weight: 700;
+    color: #fff; background: var(--primary);
+    padding: 10px 18px; border-radius: 8px;
+    text-decoration: none;
+  }
+  .error { font-size: 13px; color: var(--danger); background: #fef2f2; border: 1px solid #fecaca; padding: 9px 11px; border-radius: 8px; margin-top: 10px; }
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2.5px solid rgba(255,255,255,.35);
+    border-top-color: #fff;
+    border-radius: 50%;
+    display: inline-block;
+    vertical-align: -3px;
+    margin-right: 6px;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .brand-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .brand-row img { height: 22px; width: auto; border-radius: 4px; }
+  .brand-row span { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14141f; --card: #1c1c2b; --text: #ececf5; --muted: #9ca3af; --border: #2e2e44; --primary-soft: #2c2a52; }
+    .score-ring::before { background: var(--card); }
+    .error { background: #3a1c1c; border-color: #7f2a2a; }
+  }
+</style>
+</head>
+<body>
+  <div class="widget">
+    <div class="brand-row" id="brand-row" hidden></div>
+    <div class="widget-title" id="widget-title">Free GMB Audit</div>
+    <div class="widget-sub" id="widget-sub">Score your Google Business Profile in 60 seconds</div>
+
+    <form id="wf">
+      <div class="field">
+        <label for="w-business">Business Name</label>
+        <input type="text" id="w-business" placeholder="e.g. Mike's Plumbing" required>
+      </div>
+      <div class="field">
+        <label for="w-location">City &amp; State</label>
+        <input type="text" id="w-location" placeholder="e.g. Santa Monica, CA" required>
+      </div>
+      <div class="field" id="email-field">
+        <label for="w-email">Your Email</label>
+        <input type="email" id="w-email" placeholder="you@example.com" required>
+      </div>
+      <button type="submit" class="btn" id="w-btn"><span id="w-btn-label">Get Free Audit</span></button>
+      <div class="trust">&#10003; No credit card &nbsp;&#183;&nbsp; &#9203; Under 60 seconds &nbsp;&#183;&nbsp; &#128196; Instant full report</div>
+    </form>
+
+    <div class="result" id="w-result" hidden></div>
+  </div>
+
+<script>
+(function () {
+  var params = new URLSearchParams(location.search);
+  var API_BASE = (params.get('host') || '').replace(/\/+$/, '') || '';
+  var brandName = params.get('brand') || '';
+  var primary = params.get('primary') || '';
+  var mode = params.get('mode') || '';
+  var hideEmail = params.get('email') === '0';
+
+  if (primary && /^#[0-9a-fA-F]{6}$/.test(primary)) {
+    document.documentElement.style.setProperty('--primary', primary);
+    document.documentElement.style.setProperty('--primary-soft', primary + '26');
+  }
+  if (params.get('title')) document.getElementById('widget-title').textContent = params.get('title');
+  if (params.get('subtitle')) document.getElementById('widget-sub').textContent = params.get('subtitle');
+  if (params.get('business')) document.getElementById('w-business').value = params.get('business');
+  if (params.get('location')) document.getElementById('w-location').value = params.get('location');
+  if (hideEmail) document.getElementById('email-field').style.display = 'none';
+
+  if (brandName) {
+    var row = document.getElementById('brand-row');
+    row.hidden = false;
+    var span = document.createElement('span');
+    span.textContent = brandName + ' presents';
+    row.appendChild(span);
+  }
+
+  function notifyHeight() {
+    var h = document.body.scrollHeight;
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ seodominateWidget: 'resize', height: h }, '*');
+    }
+  }
+  window.addEventListener('load', notifyHeight);
+  new ResizeObserver(notifyHeight).observe(document.body);
+
+  var CONFIG_STATE = { recaptchaSiteKey: null, recaptchaEnterprise: false };
+  var recaptchaReady = null;
+  function loadConfig() {
+    return fetch(API_BASE + '/api/config').then(function (r) { return r.json(); }).then(function (d) {
+      CONFIG_STATE.recaptchaSiteKey = d.recaptchaSiteKey || null;
+      CONFIG_STATE.recaptchaEnterprise = !!d.recaptchaEnterprise;
+    }).catch(function () {});
+  }
+  function ensureRecaptcha() {
+    if (!CONFIG_STATE.recaptchaSiteKey || window.grecaptcha) return Promise.resolve(window.grecaptcha || null);
+    if (recaptchaReady) return recaptchaReady;
+    recaptchaReady = new Promise(function (resolve) {
+      window.__onSeodominateRecaptcha = function () { resolve(window.grecaptcha); };
+      var s = document.createElement('script');
+      var apiFile = CONFIG_STATE.recaptchaEnterprise ? 'enterprise.js' : 'api.js';
+      s.src = 'https://www.google.com/recaptcha/' + apiFile + '?render=' + CONFIG_STATE.recaptchaSiteKey;
+      s.async = true;
+      s.onload = function () { window.__onSeodominateRecaptcha(); };
+      document.head.appendChild(s);
+    });
+    return recaptchaReady;
+  }
+  function getRecaptchaToken(action) {
+    if (!CONFIG_STATE.recaptchaSiteKey) return Promise.resolve(null);
+    return ensureRecaptcha().then(function (g) {
+      if (!g) return null;
+      var exec = CONFIG_STATE.recaptchaEnterprise ? g.enterprise.execute : g.execute;
+      return exec(CONFIG_STATE.recaptchaSiteKey, { action: action });
+    }).catch(function () { return null; });
+  }
+
+  function scoreColor(score) {
+    if (score >= 80) return '#10b981';
+    if (score >= 60) return '#f59e0b';
+    return '#ef4444';
+  }
+
+  function showResult(report) {
+    var box = document.getElementById('w-result');
+    box.hidden = false;
+    var score = Math.round((report.gbp && report.gbp.score) || 0);
+    var reportUrl = API_BASE + '/report/' + encodeURIComponent(report.auditId);
+    box.style.setProperty('--score', score);
+    box.style.setProperty('--score-color', scoreColor(score));
+    box.innerHTML =
+      '<div class="score-ring"><div class="score-val">' + score + '<small>%</small></div></div>' +
+      '<h3>Your Profile Score</h3>' +
+      '<p>See your full breakdown, revenue opportunity, and what to fix.</p>' +
+      '<a class="link" href="' + reportUrl + '" target="_blank" rel="noopener">View Full Report &rarr;</a>';
+    notifyHeight();
+  }
+
+  document.getElementById('wf').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var business = document.getElementById('w-business').value.trim();
+    var location = document.getElementById('w-location').value.trim();
+    var emailEl = document.getElementById('w-email');
+    var email = hideEmail ? 'widget@seodominate.org' : (emailEl ? emailEl.value.trim() : '');
+    if (!business || !location) return;
+    if (!hideEmail && !email.includes('@')) return;
+
+    var btn = document.getElementById('w-btn');
+    var label = document.getElementById('w-btn-label');
+    btn.disabled = true;
+    label.innerHTML = '<span class="spinner"></span>Auditing...';
+
+    loadConfig().then(function () {
+      return getRecaptchaToken('audit');
+    }).then(function (recaptchaToken) {
+      return fetch(API_BASE + '/api/gmb-audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          business: business,
+          location: location,
+          email: email,
+          demo: mode === 'demo' || undefined,
+          recaptchaToken: recaptchaToken || undefined,
+          recaptchaAction: 'audit'
+        })
+      });
+    }).then(function (res) {
+      return res.json().then(function (data) { return { ok: res.ok, data: data }; });
+    }).then(function (r) {
+      if (!r.ok) throw new Error(r.data.error || 'Audit failed');
+      document.getElementById('wf').style.display = 'none';
+      showResult(r.data.report);
+    }).catch(function (err) {
+      var box = document.getElementById('w-result');
+      box.hidden = false;
+      box.innerHTML = '<div class="error">Something went wrong: ' + err.message + '</div>';
+      notifyHeight();
+    }).finally(function () {
+      btn.disabled = false;
+      label.textContent = 'Get Free Audit';
+    });
+  });
+})();
+</script>
+</body>
+</html>
