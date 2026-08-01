@@ -319,6 +319,64 @@ const reviewLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// ===== CSRF PROTECTION =====
+// The platform is stateless (Bearer tokens, no cookies), so CSRF risk is limited to
+// state-changing POSTs. Block cross-origin mutations unless the request comes from the
+// same origin or a known widget host. Requests with no Origin header (curl, server-to-server)
+// are allowed, matching how the smoke tests and webhooks operate.
+const ALLOWED_ORIGIN_HOSTS = new Set(['seodominate.vercel.app', 'seodominate.org', 'localhost', '127.0.0.1']);
+function csrfGuard(req, res, next) {
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
+  if (!String(req.path || '').startsWith('/api/')) return next();
+  const origin = req.headers.origin;
+  if (!origin) return next();
+  try {
+    const host = new URL(origin).hostname;
+    if (ALLOWED_ORIGIN_HOSTS.has(host)) return next();
+  } catch {}
+  return res.status(403).json({ error: 'Cross-origin request blocked.' });
+}
+app.use(csrfGuard);
+
+// ===== BRUTE-FORCE LOCKOUT =====
+// In-memory failed-attempt tracking keyed by account email and by client IP.
+// After MAX_FAILS failures in the window, the account/IP is locked for LOCKOUT_MS.
+const BRUTE_MAX_FAILS = 5;
+const BRUTE_WINDOW_MS = 15 * 60 * 1000;
+const BRUTE_LOCKOUT_MS = 15 * 60 * 1000;
+const loginFailures = new Map(); // key -> { count, first, lockedUntil }
+function recordLoginFailure(key) {
+  const now = Date.now();
+  const rec = loginFailures.get(key) || { count: 0, first: now, lockedUntil: 0 };
+  if (now > rec.first + BRUTE_WINDOW_MS) { rec.count = 0; rec.first = now; rec.lockedUntil = 0; }
+  rec.count += 1;
+  if (rec.count >= BRUTE_MAX_FAILS) rec.lockedUntil = now + BRUTE_LOCKOUT_MS;
+  loginFailures.set(key, rec);
+  return rec;
+}
+function checkLoginLockout(key) {
+  const now = Date.now();
+  const rec = loginFailures.get(key);
+  if (!rec) return false;
+  if (rec.lockedUntil && now < rec.lockedUntil) return true;
+  if (now > rec.first + BRUTE_WINDOW_MS) { loginFailures.delete(key); return false; }
+  return false;
+}
+function clearLoginFailures(key) {
+  loginFailures.delete(key);
+}
+function bruteGuard(req, res, next) {
+  const ip = req.ip || req.socket?.remoteAddress || '0.0.0.0';
+  const email = String((req.body && req.body.email) || '').toLowerCase().trim();
+  if (checkLoginLockout('ip:' + ip)) {
+    return res.status(429).json({ error: 'Too many attempts. Try again in 15 minutes.' });
+  }
+  if (email && checkLoginLockout('acct:' + email)) {
+    return res.status(429).json({ error: 'Too many attempts for this account. Try again in 15 minutes.' });
+  }
+  next();
+}
+
 function honeypotCheck(req, res, next) {
   if (req.body && req.body._hp && req.body._hp !== '') {
     return res.status(200).json({ success: true, fake: true });
@@ -1681,15 +1739,20 @@ app.post('/api/agency/register', agencyAuthLimiter, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/agency/login', agencyAuthLimiter, async (req, res) => {
+app.post('/api/agency/login', agencyAuthLimiter, bruteGuard, async (req, res) => {
   try {
     const { email, password } = req.body || {};
     if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+    const ip = req.ip || req.socket?.remoteAddress || '0.0.0.0';
     await ensureAgencies(CONFIG);
     const agency = Object.values(loadAgencies()).find(a => a.email === String(email).toLowerCase().trim());
     if (!agency || !verifyPassword(password, agency.passwordHash)) {
+      recordLoginFailure('ip:' + ip);
+      recordLoginFailure('acct:' + String(email).toLowerCase().trim());
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
+    clearLoginFailures('ip:' + ip);
+    clearLoginFailures('acct:' + String(email).toLowerCase().trim());
     res.json({ success: true, token: signSession(agency.id), agency: { slug: agency.slug, name: agency.brand.name } });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
