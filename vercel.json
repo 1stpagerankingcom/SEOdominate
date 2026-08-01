@@ -10,6 +10,7 @@
     { "src": "/a/(.*)", "dest": "server.js" },
     { "src": "/agency", "dest": "server.js" },
     { "src": "/manager", "dest": "server.js" },
+    { "src": "/leaderboard", "dest": "server.js" },
     { "src": "/(.*)", "dest": "public/$1" }
   ]
 }
