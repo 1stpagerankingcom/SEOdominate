@@ -1265,8 +1265,8 @@ async function generateLiveAuditReport(business, location, email, keywords, webs
     aeo, geo, summary,
   };
 
-  // Non-blocking: persist, notify, email
-  persistAudit(report, cfg).catch(() => {});
+  // Persist to Teable BEFORE responding (serverless kills the function after res), then non-blocking notify/email
+  await persistAudit(report, cfg).catch(e => console.warn('[persist audit]', e.message));
   notifyLeadCapture(report, cfg);
   sendAuditEmail(report, cfg).catch(() => {});
 
