@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Review Manager — Dashboard</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f8f6ff;--surface:#fff;--border:#e0d9f0;--text:#1a1a2e;--text2:#6b6580;--accent:#6c5ce7;--green:#10b981;--red:#ef4444;--orange:#f59e0b}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+.container{max-width:960px;margin:0 auto;padding:0 1.5rem}
+header{background:linear-gradient(135deg,#1a1a2e,#2d2b55);color:#fff;padding:1.5rem 0}
+header h1{font-size:1.25rem}
+header span{color:rgba(255,255,255,0.6);font-size:0.85rem}
+.login-box{max-width:360px;margin:4rem auto;padding:2rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;text-align:center}
+.login-box h2{margin-bottom:1rem;font-size:1.1rem}
+.login-box input{width:100%;padding:0.7rem 0.9rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.75rem;font-size:0.9rem;background:var(--bg)}
+.login-box button{width:100%;padding:0.75rem;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer}
+.dashboard{display:none}
+.dashboard-header{display:flex;justify-content:space-between;align-items:center;padding:1.5rem 0;flex-wrap:wrap;gap:0.75rem}
+.dashboard-header h2{font-size:1.1rem}
+.tabs{display:flex;gap:0.5rem;flex-wrap:wrap}
+.tab{padding:0.4rem 1rem;border-radius:8px;font-size:0.8rem;background:var(--surface);border:1px solid var(--border);cursor:pointer;transition:all 0.2s}
+.tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.stats{display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap}
+.stat{padding:1rem 1.5rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;text-align:center;flex:1;min-width:100px}
+.stat-num{font-size:1.5rem;font-weight:700}
+.stat-label{font-size:0.75rem;color:var(--text2)}
+.review-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1.25rem;margin-bottom:0.75rem}
+.review-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem;flex-wrap:wrap;gap:0.5rem}
+.review-name{font-weight:600;font-size:0.9rem}
+.review-rating{color:#f59e0b;font-size:0.9rem}
+.review-business{font-size:0.75rem;color:var(--text2)}
+.review-content{font-size:0.85rem;color:var(--text2);margin-bottom:0.75rem;line-height:1.5}
+.review-footer{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem}
+.review-date{font-size:0.7rem;color:var(--text2)}
+.review-actions{display:flex;gap:0.4rem}
+.badge{padding:0.2rem 0.6rem;border-radius:999px;font-size:0.65rem;font-weight:600;text-transform:uppercase}
+.badge-pending{background:rgba(245,158,11,0.15);color:var(--orange)}
+.badge-approved{background:rgba(16,185,129,0.15);color:var(--green)}
+.badge-rejected{background:rgba(239,68,68,0.15);color:var(--red)}
+.btn-sm{padding:0.35rem 0.75rem;border-radius:6px;font-size:0.75rem;font-weight:500;border:none;cursor:pointer}
+.btn-approve{background:var(--green);color:#fff}
+.btn-reject{background:var(--red);color:#fff}
+.btn-reset{background:var(--orange);color:#fff}
+textarea.manager-notes{width:100%;margin-top:0.5rem;padding:0.5rem;border:1px solid var(--border);border-radius:6px;font-size:0.8rem;resize:vertical;min-height:50px;background:var(--bg)}
+.empty{text-align:center;padding:3rem;color:var(--text2);font-size:0.9rem}
+#login-error{color:var(--red);font-size:0.8rem;margin-bottom:0.5rem;display:none}
+@media(max-width:600px){.stats{flex-direction:column}}
+</style>
+</head>
+<body>
+<header><div class="container"><h1>&#128202; Review Manager Dashboard</h1><span id="status-badge">Not authenticated</span></div></header>
+
+<div class="container">
+  <div class="login-box" id="login-box">
+    <h2>Manager Login</h2>
+    <p id="login-error"></p>
+    <input type="password" id="token-input" placeholder="Enter manager token" />
+    <button onclick="login()">Authenticate</button>
+  </div>
+
+  <div class="dashboard" id="dashboard">
+    <div class="dashboard-header">
+      <h2 id="total-label">Loading reviews...</h2>
+      <div class="tabs">
+        <span class="tab active" data-filter="all">All</span>
+        <span class="tab" data-filter="pending">Pending</span>
+        <span class="tab" data-filter="approved">Approved</span>
+        <span class="tab" data-filter="rejected">Rejected</span>
+      </div>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div id="review-list"></div>
+  </div>
+</div>
+
+<script>
+let token = localStorage.getItem('manager_token') || '';
+let reviews = [];
+let filter = 'all';
+
+function login() {
+  const t = document.getElementById('token-input').value.trim();
+  if (!t) return;
+  token = t;
+  localStorage.setItem('manager_token', token);
+  init();
+}
+
+function logout() {
+  token = '';
+  localStorage.removeItem('manager_token');
+  document.getElementById('login-box').style.display = 'block';
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('status-badge').textContent = 'Not authenticated';
+}
+
+async function api(path, opts = {}) {
+  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+  const res = await fetch(path, { ...opts, headers });
+  if (res.status === 401) { logout(); return null; }
+  return res.json();
+}
+
+async function init() {
+  if (!token) return;
+  const data = await api('/api/reviews');
+  if (!data) return;
+  reviews = data.reviews || [];
+  document.getElementById('login-box').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('status-badge').textContent = `Authenticated | ${data.pending} pending`;
+  render();
+}
+
+function getFiltered() {
+  return filter === 'all' ? reviews : reviews.filter(r => r.status === filter);
+}
+
+function render() {
+  const filtered = getFiltered();
+  const p = reviews.filter(r => r.status === 'pending').length;
+  const a = reviews.filter(r => r.status === 'approved').length;
+  const rj = reviews.filter(r => r.status === 'rejected').length;
+
+  document.getElementById('total-label').textContent = `${filtered.length} Review${filtered.length !== 1 ? 's' : ''} (${filter})`;
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="stat-num">${reviews.length}</div><div class="stat-label">Total</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--orange)">${p}</div><div class="stat-label">Pending</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--green)">${a}</div><div class="stat-label">Approved</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--red)">${rj}</div><div class="stat-label">Rejected</div></div>
+  `;
+
+  if (!filtered.length) {
+    document.getElementById('review-list').innerHTML = '<div class="empty">No reviews in this filter.</div>';
+    return;
+  }
+
+  document.getElementById('review-list').innerHTML = filtered.map(r => `
+    <div class="review-card">
+      <div class="review-header">
+        <div>
+          <div class="review-name">${esc(r.name)}</div>
+          <div class="review-business">${esc(r.businessName || 'General')} &middot; ${esc(r.email || 'no email')}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="review-rating">${'&#9733;'.repeat(r.rating)}${'&#9734;'.repeat(5 - r.rating)}</div>
+          <span class="badge badge-${r.status}">${r.status}</span>
+        </div>
+      </div>
+      <div class="review-content">${esc(r.content)}</div>
+      <div class="review-footer">
+        <div class="review-date">${new Date(r.createdAt).toLocaleString()}</div>
+        <div class="review-actions">
+          ${r.status === 'pending' ? `
+            <button class="btn-sm btn-approve" onclick="updateStatus('${r.id}','approved')">&#10003; Approve</button>
+            <button class="btn-sm btn-reject" onclick="updateStatus('${r.id}','rejected')">&#10007; Reject</button>
+          ` : r.status !== 'pending' ? `
+            <button class="btn-sm btn-reset" onclick="updateStatus('${r.id}','pending')">Reset to Pending</button>
+          ` : ''}
+        </div>
+      </div>
+      ${r.status === 'pending' ? `
+        <textarea class="manager-notes" placeholder="Manager notes (optional)..." onchange="saveNotes('${r.id}', this.value)">${esc(r.managerNotes || '')}</textarea>
+      ` : r.managerNotes ? `<div style="margin-top:0.5rem;padding:0.5rem;background:#f0ecf9;border-radius:6px;font-size:0.78rem;color:var(--text2)"><strong>Notes:</strong> ${esc(r.managerNotes)}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+async function updateStatus(id, status) {
+  await api(`/api/reviews/${id}`, { method: 'PUT', body: JSON.stringify({ status }) });
+  await init();
+}
+
+async function saveNotes(id, notes) {
+  await api(`/api/reviews/${id}`, { method: 'PUT', body: JSON.stringify({ managerNotes: notes }) });
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+// Tab switching
+document.querySelectorAll('.tab').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    filter = el.dataset.filter;
+    render();
+  });
+});
+
+if (token) init();
+</script>
+</body>
+</html>

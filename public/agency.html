@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEODominate — Agency Dashboard</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f8f6ff;--surface:#fff;--surface2:#f0ecf9;--border:#e0d9f0;--text:#1a1a2e;--text2:#6b6580;--accent:#6c5ce7;--green:#10b981;--red:#ef4444;--orange:#f59e0b}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+.container{max-width:1000px;margin:0 auto;padding:0 1.5rem}
+header{background:linear-gradient(135deg,#1a1a2e,#2d2b55);color:#fff;padding:1.25rem 0}
+header .row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.75rem}
+header h1{font-size:1.25rem}
+header span{color:rgba(255,255,255,0.65);font-size:0.85rem}
+.auth-card{max-width:420px;margin:4rem auto;padding:2rem;background:var(--surface);border:1px solid var(--border);border-radius:14px}
+.auth-card h2{margin-bottom:0.25rem;font-size:1.15rem}
+.auth-card p.sub{color:var(--text2);font-size:0.85rem;margin-bottom:1.25rem}
+.auth-tabs{display:flex;gap:0.5rem;margin-bottom:1.25rem}
+.auth-tab{flex:1;padding:0.5rem;border-radius:8px;font-size:0.85rem;font-weight:600;text-align:center;background:var(--surface2);border:1px solid var(--border);cursor:pointer}
+.auth-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.auth-form{display:none}
+.auth-form.active{display:block}
+label{display:block;font-size:0.75rem;font-weight:600;color:var(--text2);margin:0.75rem 0 0.25rem;text-transform:uppercase;letter-spacing:0.04em}
+input,select{width:100%;padding:0.65rem 0.85rem;border:1px solid var(--border);border-radius:8px;font-size:0.9rem;background:var(--bg);color:var(--text)}
+input:focus{outline:2px solid rgba(108,92,231,0.3);border-color:var(--accent)}
+button{font-family:inherit}
+.btn-primary{width:100%;padding:0.75rem;margin-top:1rem;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;transition:opacity 0.15s}
+.btn-primary:hover{opacity:0.9}
+.btn-primary:disabled{opacity:0.5;cursor:not-allowed}
+.msg{font-size:0.8rem;margin-top:0.75rem;min-height:1em;color:var(--red)}
+.msg.ok{color:var(--green)}
+#dashboard{display:none}
+.dash-head{display:flex;justify-content:space-between;align-items:center;padding:1.5rem 0 0;flex-wrap:wrap;gap:0.75rem}
+.dash-head h2{font-size:1.1rem}
+.chip{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:0.25rem 0.75rem;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em}
+.chip.green{background:rgba(16,185,129,0.12);color:#047857;border-color:#a7f3d0}
+.chip.gray{background:var(--surface2);color:var(--text2);border-color:var(--border)}
+.tabs{display:flex;gap:0.5rem;margin:1.25rem 0;flex-wrap:wrap}
+.tab{padding:0.45rem 1.1rem;border-radius:8px;font-size:0.82rem;background:var(--surface);border:1px solid var(--border);cursor:pointer}
+.tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.panel{display:none;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;margin-bottom:2rem}
+.panel.active{display:block}
+.panel h3{font-size:0.95rem;margin-bottom:0.25rem}
+.panel p.hint{font-size:0.8rem;color:var(--text2);margin-bottom:1rem}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:0 1.5rem}
+.section-title{margin:1.25rem 0 0.5rem;font-size:0.8rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.05em}
+.btn-save{margin-top:1.25rem}
+.key-status{display:flex;justify-content:space-between;align-items:center;gap:0.75rem}
+.key-status .kv{flex:1}
+.key-status input[type="password"]{flex:1}
+.key-status .dot{font-size:0.75rem;color:var(--text2)}
+.audit-row{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.75rem 1rem;margin-bottom:0.5rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem}
+.audit-row .name{font-weight:600;font-size:0.88rem}
+.audit-row .meta{font-size:0.75rem;color:var(--text2)}
+.audit-row .score{font-weight:700;font-size:0.9rem}
+.audit-row a{color:var(--accent);font-size:0.8rem;text-decoration:none}
+.logout-btn{background:rgba(255,255,255,0.12);color:#fff;border:1px solid rgba(255,255,255,0.25);padding:0.4rem 0.9rem;border-radius:8px;font-size:0.8rem;cursor:pointer}
+.logout-btn:hover{background:rgba(255,255,255,0.2)}
+footer{text-align:center;padding:2rem 0;color:var(--text2);font-size:0.8rem}
+@media(max-width:640px){.grid-2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><div class="container"><div class="row"><h1>&#128200; SEODominate Agency Dashboard</h1><span id="auth-state">Not signed in</span></div></div></header>
+
+<div class="container">
+  <div class="auth-card" id="auth-card">
+    <h2>Welcome</h2>
+    <p class="sub">Run SEODominate under your own brand with your own API keys. White-label, resell, and capture leads for your agency.</p>
+    <div class="auth-tabs">
+      <div class="auth-tab active" data-tab="login">Log In</div>
+      <div class="auth-tab" data-tab="register">Register</div>
+    </div>
+    <form class="auth-form active" id="login-form">
+      <label>Email</label><input type="email" id="login-email" placeholder="you@agency.com" required />
+      <label>Password</label><input type="password" id="login-password" placeholder="Your password" required />
+      <button class="btn-primary" type="submit">Log In</button>
+      <div class="msg" id="login-msg"></div>
+    </form>
+    <form class="auth-form" id="register-form">
+      <label>Agency Name</label><input type="text" id="reg-name" placeholder="Acme SEO" required />
+      <label>Email</label><input type="email" id="reg-email" placeholder="owner@agency.com" required />
+      <label>Password</label><input type="password" id="reg-password" placeholder="At least 6 characters" required />
+      <label>Slug (optional)</label><input type="text" id="reg-slug" placeholder="acme-seo" />
+      <p class="hint" style="margin-top:0.5rem">Your white-label URL: <code>seodominate.org/a/<span id="slug-preview">your-slug</span></code></p>
+      <button class="btn-primary" type="submit">Create Agency Account</button>
+      <div class="msg" id="reg-msg"></div>
+    </form>
+  </div>
+
+  <div id="dashboard">
+    <div class="dash-head">
+      <h2>Settings &amp; Audits — <span id="agency-name"></span></h2>
+      <button class="logout-btn" id="logout-btn">Log Out</button>
+    </div>
+    <div class="chip gray" style="margin-top:0.5rem">Your white-label URL: <code id="agency-url"></code></div>
+
+    <div class="tabs">
+      <div class="tab active" data-panel="brand">Brand</div>
+      <div class="tab" data-panel="keys">API Keys</div>
+      <div class="tab" data-panel="webhooks">Webhooks</div>
+      <div class="tab" data-panel="audits">Audits</div>
+    </div>
+
+    <div class="panel active" id="panel-brand">
+      <h3>White-Label Branding</h3>
+      <p class="hint">Applied instantly to your audit landing page, report emails, and shareable reports.</p>
+      <div class="grid-2">
+        <div><label>Brand Name</label><input type="text" id="b-name" placeholder="My Agency" /></div>
+        <div><label>Accent Color</label><input type="color" id="b-color" value="#6c5ce7" /></div>
+        <div><label>Logo URL</label><input type="text" id="b-logo" placeholder="https://agency.com/logo.png" /></div>
+        <div><label>Contact Email</label><input type="email" id="b-email" placeholder="hello@agency.com" /></div>
+        <div><label>AI Assistant Name</label><input type="text" id="b-assistant" placeholder="Aria" /></div>
+        <div><label>Custom Domain (CNAME to this tool)</label><input type="text" id="b-domain" placeholder="audit.agency.com" /></div>
+      </div>
+      <button class="btn-primary btn-save" id="save-brand">Save Brand</button>
+      <div class="msg ok" id="brand-msg"></div>
+    </div>
+
+    <div class="panel" id="panel-keys">
+      <h3>Your API Keys</h3>
+      <p class="hint">Audits use your keys when set; otherwise they fall back to the platform's simulation/demo mode. Keys are encrypted at rest.</p>
+      <div class="section-title">Google Places API (New)</div>
+      <div class="key-status"><label style="min-width:150px;margin:0">Google Places Key</label><input type="password" id="k-googlePlacesKey" placeholder="AIza..." /><span class="dot" id="dot-googlePlacesKey"></span></div>
+      <div class="section-title">DataForSEO</div>
+      <div class="key-status"><label style="min-width:150px;margin:0">DFS Login</label><input type="password" id="k-dfsLogin" placeholder="email" /><span class="dot" id="dot-dfsLogin"></span></div>
+      <div class="key-status"><label style="min-width:150px;margin:0">DFS Password</label><input type="password" id="k-dfsPassword" placeholder="api password" /><span class="dot" id="dot-dfsPassword"></span></div>
+      <div class="section-title">LLM (AI visibility + summary)</div>
+      <div class="key-status"><label style="min-width:150px;margin:0">OpenRouter Key</label><input type="password" id="k-openrouterKey" placeholder="sk-or-..." /><span class="dot" id="dot-openrouterKey"></span></div>
+      <div class="key-status"><label style="min-width:150px;margin:0">LLM Base URL</label><input type="password" id="k-llmBaseUrl" placeholder="https://openrouter.ai/api/v1" /><span class="dot" id="dot-llmBaseUrl"></span></div>
+      <div class="section-title">On-Page / AEO / GEO</div>
+      <div class="key-status"><label style="min-width:150px;margin:0">RankNibbler Key</label><input type="password" id="k-rankNibblerKey" placeholder="rnk_..." /><span class="dot" id="dot-rankNibblerKey"></span></div>
+      <div class="section-title">Email (branded report delivery)</div>
+      <div class="key-status"><label style="min-width:150px;margin:0">SMTP Host</label><input type="password" id="k-smtpHost" placeholder="smtp.resend.com" /><span class="dot" id="dot-smtpHost"></span></div>
+      <div class="key-status"><label style="min-width:150px;margin:0">SMTP Port</label><input type="password" id="k-smtpPort" placeholder="587" /><span class="dot" id="dot-smtpPort"></span></div>
+      <div class="key-status"><label style="min-width:150px;margin:0">SMTP User</label><input type="password" id="k-smtpUser" placeholder="resend" /><span class="dot" id="dot-smtpUser"></span></div>
+      <div class="key-status"><label style="min-width:150px;margin:0">SMTP Pass</label><input type="password" id="k-smtpPass" placeholder="..." /><span class="dot" id="dot-smtpPass"></span></div>
+      <div class="key-status"><label style="min-width:150px;margin:0">From Email</label><input type="password" id="k-fromEmail" placeholder="Agency &lt;no-reply@agency.com&gt;" /><span class="dot" id="dot-fromEmail"></span></div>
+      <div class="section-title">Teable persistence (optional)</div>
+      <div class="key-status"><label style="min-width:150px;margin:0">Teable Token</label><input type="password" id="k-teableToken" placeholder="..." /><span class="dot" id="dot-teableToken"></span></div>
+      <div class="key-status"><label style="min-width:150px;margin:0">Audits Table ID</label><input type="password" id="k-teableAuditsTableId" placeholder="..." /><span class="dot" id="dot-teableAuditsTableId"></span></div>
+      <div class="key-status"><label style="min-width:150px;margin:0">Leads Table ID</label><input type="password" id="k-teableLeadsTableId" placeholder="..." /><span class="dot" id="dot-teableLeadsTableId"></span></div>
+      <div class="section-title">Bot protection</div>
+      <div class="key-status"><label style="min-width:150px;margin:0">reCAPTCHA Site Key</label><input type="password" id="k-recaptchaSiteKey" placeholder="6L..." /><span class="dot" id="dot-recaptchaSiteKey"></span></div>
+      <div class="key-status"><label style="min-width:150px;margin:0">reCAPTCHA Secret Key</label><input type="password" id="k-recaptchaSecretKey" placeholder="6L..." /><span class="dot" id="dot-recaptchaSecretKey"></span></div>
+      <button class="btn-primary btn-save" id="save-keys">Save Keys</button>
+      <div class="msg ok" id="keys-msg"></div>
+    </div>
+
+    <div class="panel" id="panel-webhooks">
+      <h3>Webhooks &amp; Automation</h3>
+      <p class="hint">Fired on every completed audit so your CRM/nurture pipeline activates.</p>
+      <div class="grid-2">
+        <div><label>Make.com Lead Capture</label><input type="password" id="k-makeWebhook" placeholder="https://hook.us2.make.com/..." /></div>
+        <div><label>SERPwin Reporting</label><input type="password" id="k-serpwinWebhook" placeholder="https://serpwin.../api/action" /></div>
+        <div><label>Follow-up / Nurture Webhook</label><input type="password" id="k-followupWebhook" placeholder="https://hook..." /></div>
+      </div>
+      <button class="btn-primary btn-save" id="save-webhooks">Save Webhooks</button>
+      <div class="msg ok" id="webhooks-msg"></div>
+    </div>
+
+    <div class="panel" id="panel-audits">
+      <h3>Recent Audits</h3>
+      <p class="hint">Your agency's audit history (last 50).</p>
+      <div id="audits-list"><div class="empty" style="padding:2rem;text-align:center;color:var(--text2);font-size:0.9rem">Loading...</div></div>
+    </div>
+  </div>
+</div>
+
+<footer>&copy; <span id="year"></span> SEODominate — white-label local SEO audit platform for agencies.</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+let TOKEN = localStorage.getItem('sd_token') || '';
+
+// ---- Auth tabs ----
+document.querySelectorAll('.auth-tab').forEach(tab => tab.addEventListener('click', () => {
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.toggle('active', t === tab));
+  document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+  $(tab.dataset.tab + '-form').classList.add('active');
+  $('login-msg').textContent = ''; $('reg-msg').textContent = '';
+}));
+
+// ---- Tabs ----
+document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t === tab));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  $(tab.dataset.panel === 'brand' ? 'panel-brand' : tab.dataset.panel === 'keys' ? 'panel-keys' : tab.dataset.panel === 'webhooks' ? 'panel-webhooks' : 'panel-audits').classList.add('active');
+}));
+
+$('reg-name').addEventListener('input', () => {
+  const slug = $('reg-name').value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  $('slug-preview').textContent = slug || 'your-slug';
+});
+
+async function request(path, method, body, auth = true) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (auth && TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
+  const res = await fetch(path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  return { res, data: await res.json().catch(() => ({})) };
+}
+
+$('login-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const { res, data } = await request('/api/agency/login', 'POST', { email: $('login-email').value, password: $('login-password').value }, false);
+  if (!res.ok) { $('login-msg').textContent = data.error || 'Login failed.'; return; }
+  TOKEN = data.token; localStorage.setItem('sd_token', TOKEN);
+  enterDashboard(data.agency);
+});
+
+$('register-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const { res, data } = await request('/api/agency/register', 'POST', {
+    name: $('reg-name').value, email: $('reg-email').value, password: $('reg-password').value, slug: $('reg-slug').value || undefined,
+  }, false);
+  if (!res.ok) { $('reg-msg').textContent = data.error || 'Registration failed.'; return; }
+  TOKEN = data.token; localStorage.setItem('sd_token', TOKEN);
+  enterDashboard(data.agency);
+});
+
+$('logout-btn').addEventListener('click', () => { TOKEN = ''; localStorage.removeItem('sd_token'); location.reload(); });
+
+async function enterDashboard(agency) {
+  $('auth-card').style.display = 'none';
+  $('dashboard').style.display = 'block';
+  $('auth-state').textContent = 'Signed in as ' + (agency.name || agency.slug);
+  $('agency-name').textContent = agency.name || agency.slug;
+  $('agency-url').textContent = (location.origin + '/a/' + agency.slug).replace('http://localhost', location.origin);
+  await loadSettings();
+}
+
+async function loadSettings() {
+  const { res, data } = await request('/api/agency/me', 'GET');
+  if (!res.ok) { signOut(); return; }
+  const a = data.agency;
+  $('b-name').value = a.brand.name || '';
+  $('b-color').value = a.brand.color || '#6c5ce7';
+  $('b-logo').value = a.brand.logoUrl || '';
+  $('b-email').value = a.brand.email || '';
+  $('b-assistant').value = a.brand.assistantName || 'Aria';
+  $('b-domain').value = a.brand.domain || '';
+  $('agency-url').textContent = (location.origin + '/a/' + a.slug).replace('http://localhost', location.origin);
+  for (const key in a.keys) {
+    const el = $('k-' + key);
+    if (el) { el.value = a.keys[key] || ''; el.placeholder = a.keys[key] ? '•••••••• (set)' : 'Not set'; }
+    const dot = $('dot-' + key);
+    if (dot) dot.textContent = a.keys[key] ? '● set' : '○ unset';
+  }
+  loadAudits();
+}
+
+async function loadAudits() {
+  const { res, data } = await request('/api/agency/me/audits', 'GET');
+  const list = $('audits-list');
+  if (!res.ok || !data.audits) { list.innerHTML = '<div class="empty">Could not load audits.</div>'; return; }
+  if (!data.audits.length) { list.innerHTML = '<div class="empty">No audits yet. Run one from your landing page and it will appear here.</div>'; return; }
+  list.innerHTML = data.audits.map(a => `
+    <div class="audit-row">
+      <div>
+        <div class="name">${esc(a.business)}</div>
+        <div class="meta">${esc(a.location)} &middot; ${esc(a.email)} &middot; ${new Date(a.timestamp).toLocaleString()}</div>
+      </div>
+      <div class="score" style="color:${a.score >= 60 ? '#10b981' : '#ef4444'}">${a.score}/100</div>
+      <div class="meta">$${a.atStake.toLocaleString()} at stake</div>
+      <a href="/report/${a.auditId}" target="_blank">View &rarr;</a>
+    </div>`).join('');
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+function collectKeys(prefixes) {
+  const out = {};
+  prefixes.forEach(p => {
+    const el = $('k-' + p);
+    if (el) out[p] = el.value || '';
+  });
+  return out;
+}
+
+$('save-brand').addEventListener('click', async () => {
+  const { res, data } = await request('/api/agency/me', 'PUT', {
+    brand: {
+      name: $('b-name').value, color: $('b-color').value, logoUrl: $('b-logo').value,
+      email: $('b-email').value, assistantName: $('b-assistant').value, domain: $('b-domain').value,
+    },
+  });
+  $('brand-msg').textContent = res.ok ? 'Saved. Your white-label branding is live.' : (data.error || 'Save failed.');
+  if (res.ok) { $('agency-name').textContent = $('b-name').value || 'Agency'; $('agency-url').textContent = (location.origin + '/a/' + data.agency.slug).replace('http://localhost', location.origin); }
+});
+
+$('save-keys').addEventListener('click', async () => {
+  const keys = collectKeys(['googlePlacesKey','dfsLogin','dfsPassword','openrouterKey','llmBaseUrl','rankNibblerKey','smtpHost','smtpPort','smtpUser','smtpPass','fromEmail','teableToken','teableAuditsTableId','teableLeadsTableId','recaptchaSiteKey','recaptchaSecretKey']);
+  const { res, data } = await request('/api/agency/me/keys', 'PUT', { keys });
+  $('keys-msg').textContent = res.ok ? 'Keys saved.' : (data.error || 'Save failed.');
+  if (res.ok) {
+    for (const key in data.keys) { const dot = $('dot-' + key); if (dot) dot.textContent = data.keys[key] ? '● set' : '○ unset'; }
+  }
+});
+
+$('save-webhooks').addEventListener('click', async () => {
+  const keys = collectKeys(['makeWebhook','serpwinWebhook','followupWebhook']);
+  const { res, data } = await request('/api/agency/me/keys', 'PUT', { keys });
+  $('webhooks-msg').textContent = res.ok ? 'Webhooks saved.' : (data.error || 'Save failed.');
+});
+
+function signOut() { TOKEN = ''; localStorage.removeItem('sd_token'); location.reload(); }
+
+$('year').textContent = new Date().getFullYear();
+
+// Auto-login if a valid token exists
+(async () => {
+  if (!TOKEN) return;
+  const { res } = await request('/api/agency/me', 'GET');
+  if (res.ok) { enterDashboard({ name: '' }); }
+  else { TOKEN = ''; localStorage.removeItem('sd_token'); }
+})();
+</script>
+</body>
+</html>

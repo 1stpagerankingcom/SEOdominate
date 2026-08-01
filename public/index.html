@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Free GMB Audit — Get Your Google Business Profile Score in 60 Seconds</title>
+<meta name="description" content="Get a free Google Business Profile audit in 60 seconds. See your optimization score, local revenue opportunity, top competitors, and AI visibility across ChatGPT, Claude, Gemini and more.">
+<meta name="theme-color" content="#6c5ce7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Free GMB Audit — Score Your Google Business Profile in 60 Seconds">
+<meta property="og:description" content="See your optimization score, local revenue opportunity, top competitors, and AI visibility across ChatGPT, Claude, Gemini and more. Free, in 60 seconds.">
+<meta property="og:url" content="/">
+<meta property="og:image" content="/og-image.png">
+<meta property="og:site_name" content="SEODominate">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Free GMB Audit — Score Your Google Business Profile in 60 Seconds">
+<meta name="twitter:description" content="Optimization score, revenue opportunity, competitors, and AI visibility. Free in 60 seconds.">
+<meta name="twitter:image" content="/og-image.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "name": "SEODominate",
+      "url": "/",
+      "logo": "/icons/icon.svg",
+      "description": "Free 60-second Google Business Profile audit tool. See your optimization score, local revenue opportunity, top competitors, AI visibility, keyword heatmaps and AI-written fixes."
+    },
+    {
+      "@type": "SoftwareApplication",
+      "name": "Free GMB Audit",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "description": "Instantly score your Google Business Profile, quantify local revenue at stake, find top competitors, check AI platform visibility and get prioritized fixes."
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "Is your GBP audit tool really free?", "acceptedAnswer": { "@type": "Answer", "text": "Yes, completely free. No credit card required. You get a full audit instantly." } },
+        { "@type": "Question", "name": "How does this free audit tool work?", "acceptedAnswer": { "@type": "Answer", "text": "Enter your business name and location. We analyze your Google Business Profile across 10 key factors, check your local competition, estimate market revenue, scan 6 AI platforms for your visibility, and generate ranking heatmaps." } },
+        { "@type": "Question", "name": "Is this a white label tool for agencies?", "acceptedAnswer": { "@type": "Answer", "text": "Yes! We offer white-label options for agencies who want to run audits for their clients under their own brand." } },
+        { "@type": "Question", "name": "Will I get emailed my free GBP audit?", "acceptedAnswer": { "@type": "Answer", "text": "Yes, we'll send a copy to your email along with actionable tips to improve your local SEO." } }
+      ]
+    }
+  ]
+}
+</script>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===== HERO ===== -->
+<section class="hero" id="hero">
+  <div class="container">
+    <div class="hero-badge">Results in 60 Seconds</div>
+    <h1>Your <span class="gradient-text">Free GMB Audit</span> That Actually Helps You Improve</h1>
+    <p class="hero-sub">Your Google Business Profile powers Google Search, Google Maps, AI Overviews, Gemini, ChatGPT and more. Get your free audit in 60 seconds — see your optimization score, revenue opportunity, competitors, AI visibility, and exactly what to fix.</p>
+    <form id="audit-form" class="hero-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="business">Business Name</label>
+          <input type="text" id="business" placeholder="e.g. Mike's Plumbing" required />
+        </div>
+        <div class="form-group">
+          <label for="location">City & State</label>
+          <input type="text" id="location" placeholder="e.g. Santa Monica, CA" required />
+        </div>
+        <div class="form-group">
+          <label for="email">Your Email</label>
+          <input type="email" id="email" placeholder="you@example.com" required />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group form-group-wide">
+          <label for="website">Business Website <span class="opt-label">(optional — unlocks live on-page AEO/GEO scoring)</span></label>
+          <input type="url" id="website" placeholder="https://yourbusiness.com" />
+        </div>
+      </div>
+      <div class="keyword-row" id="keyword-row">
+        <label>Choose keywords to audit (select up to 3):</label>
+        <div class="keyword-chips" id="keyword-chips"></div>
+        <input type="text" id="keyword-custom" placeholder="+ Add custom keyword" />
+      </div>
+      <button type="submit" id="submit-btn">
+        <span class="btn-text">Get Free SEO Audit</span>
+        <span class="btn-loading" hidden>
+          <span class="spinner"></span>
+          Running your audit...
+        </span>
+      </button>
+      <div class="trust-row">
+        <span>&#10003; No credit card</span>
+        <span>&#9203; Under 60 seconds</span>
+        <span>&#128196; Instant full report</span>
+      </div>
+      <div class="demo-row">
+        <button type="button" id="demo-btn" class="btn-demo">&#9654; Watch a Live Demo Audit</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<!-- ===== FEATURES ===== -->
+<section class="features" id="features">
+  <div class="container">
+    <div class="section-label">What's Inside Your Free SEO Audit</div>
+    <h2>Here's What Your <span class="gradient-text">GMB Audit</span> Includes</h2>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-num">01</div>
+        <h3>Your Business Profile Optimization Score & What To Fix</h3>
+        <p>You get a 0–100% score showing how well your profile is set up to rank online plus a clear Pass/Fail card for each of the 10 key GBP factors Google weighs most.</p>
+        <ul>
+          <li>Business description keyword optimization</li>
+          <li>Review frequency & Google rating</li>
+          <li>Review reply rate</li>
+          <li>Number of images uploaded</li>
+          <li>Post frequency & post keyword optimization</li>
+          <li>Services list & service descriptions</li>
+          <li>Service area setup</li>
+        </ul>
+      </div>
+      <div class="feature-card">
+        <div class="feature-num">02</div>
+        <h3>Your Local Market Revenue Opportunity</h3>
+        <p>Your audit estimates the total monthly revenue being spent on businesses in your category and location, based on local search volume and average customer value. An actual dollar estimate that shows what's at stake.</p>
+        <ul>
+          <li>Your estimated monthly local search volume</li>
+          <li>Estimated average customer value in your market</li>
+          <li>Estimated total amount spent with your competitors</li>
+        </ul>
+      </div>
+      <div class="feature-card">
+        <div class="feature-num">03</div>
+        <h3>Your Top 3 Competitors on Google Maps</h3>
+        <p>See the 3 businesses currently outranking you in the Google Local Pack — their name, address, star rating, review count, and location on a map. Knowing who you're up against is the first step to overtaking them.</p>
+        <ul>
+          <li>Name and address of each top-ranked Google competitor</li>
+          <li>Their star rating and total review count</li>
+          <li>Better understand what local searchers see</li>
+        </ul>
+      </div>
+      <div class="feature-card">
+        <div class="feature-num">04</div>
+        <h3>AI Visibility Check Across All Major LLMs</h3>
+        <p>Your audit searches for your business across 6 major AI platforms and shows whether you're being recommended when someone asks for the best business in your category and city.</p>
+        <ul>
+          <li>Checked across ChatGPT, Claude, Gemini, Grok, Llama & Perplexity</li>
+          <li>Searched using your actual business category and location</li>
+          <li>Clear Found / Not Found result for each platform</li>
+        </ul>
+      </div>
+      <div class="feature-card">
+        <div class="feature-num">05</div>
+        <h3>Keyword Ranking Heatmaps</h3>
+        <p>For each keyword you select, you get a geographic heatmap showing where you currently rank on Google Maps across your service area — not just at your address, but across every neighborhood.</p>
+        <ul>
+          <li>One heatmap per keyword you choose to audit</li>
+          <li>Your average ranking across the entire geographic grid</li>
+          <li>Multiplier showing how much more business ranking #1 would bring</li>
+          <li>Visual map overlay of your exact area</li>
+        </ul>
+      </div>
+      <div class="feature-card">
+        <div class="feature-num">06</div>
+        <h3>AI-Written Summary & Optimization Suggestions</h3>
+        <p>Our AI writes a plain-English summary of everything found on your profile — what's costing you rankings, and exactly what to do about it. You also get specific content suggestions so you can start fixing things immediately.</p>
+        <ul>
+          <li>Personalized plain-English audit summary</li>
+          <li>Specific fixes prioritized by ranking impact</li>
+          <li>Guidance on services to add and how to describe them</li>
+        </ul>
+      </div>
+      <div class="feature-card">
+        <div class="feature-num">07</div>
+        <h3>AEO — Answer Engine Optimization Report</h3>
+        <p>Your audit scores how well your content performs in answer engines — feature snippets, voice search, "People Also Ask" boxes, and direct answers. These are the zero-click results that capture 50%+ of search traffic.</p>
+        <ul>
+          <li>Question match rate & answer clarity score</li>
+          <li>Featured snippet & voice search readiness</li>
+          <li>FAQ structured data & PAA coverage analysis</li>
+        </ul>
+      </div>
+      <div class="feature-card">
+        <div class="feature-num">08</div>
+        <h3>GEO — Generative Engine Optimization Report</h3>
+        <p>See how well your business entity is understood by AI engines like ChatGPT, Claude, Gemini, and Perplexity. Your GEO score measures entity clarity, context authority, and AI recommendation readiness.</p>
+        <ul>
+          <li>Entity clarity & Knowledge Graph presence</li>
+          <li>LLM recommendation & contextual authority scores</li>
+          <li>Structured entity data & citation consistency</li>
+        </ul>
+      </div>
+      <div class="feature-card">
+        <div class="feature-num">09</div>
+        <h3>Smart Review Platform — Only 4 & 5 Stars Go Public</h3>
+        <p>Our built-in review management system automatically publishes 4 & 5-star reviews to your platforms while routing 1-3 star reviews to your manager for private resolution. Never let a bad review hurt your rating again.</p>
+        <ul>
+          <li>4 & 5-star reviews published automatically</li>
+          <li>1-3 star reviews held for manager review</li>
+          <li>Full manager dashboard to respond & resolve</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== TESTIMONIALS ===== -->
+<section class="testimonials" id="testimonials">
+  <div class="container">
+    <div class="section-label">Trusted by Local Businesses</div>
+    <h2>What Our Users Say</h2>
+    <div class="testimonial-grid">
+      <div class="testimonial-card">
+        <div class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p>"I am blown away by how this tool makes my life easier! The ease of use and ability at a glance to see how my pages rank has been a game changer for me."</p>
+        <div class="testimonial-author">
+          <div class="author-avatar">AG</div>
+          <div>
+            <strong>Amber Goetz</strong>
+            <span>Small Business Owner</span>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial-card">
+        <div class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p>"The services are amazing and the one on one help to get started has been awesome. Their systems allow for tracking and success to increase our ranking."</p>
+        <div class="testimonial-author">
+          <div class="author-avatar">DS</div>
+          <div>
+            <strong>David Salerno</strong>
+            <span>Agency Owner</span>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial-card">
+        <div class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+        <p>"Super easy tool to use. Very intuitive. The AI is the bomb!"</p>
+        <div class="testimonial-author">
+          <div class="author-avatar">CB</div>
+          <div>
+            <strong>Craig Broadhead</strong>
+            <span>Marketing Consultant</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== HOW IT WORKS ===== -->
+<section class="how-it-works" id="how-it-works">
+  <div class="container">
+    <div class="section-label">Simple 3-Step Process</div>
+    <h2>Get Your Complete Free Local SEO Audit Right Now</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-icon">&#128274;</div>
+        <h3>Sign In with Google</h3>
+        <p>Log in with the Google account that manages your Business Profile. Secure — we never see your password.</p>
+      </div>
+      <div class="step-arrow">&#8594;</div>
+      <div class="step">
+        <div class="step-icon">&#128270;</div>
+        <h3>Choose Your Keywords</h3>
+        <p>Select the search terms you want to rank for. We suggest the most relevant ones for your business type and city.</p>
+      </div>
+      <div class="step-arrow">&#8594;</div>
+      <div class="step">
+        <div class="step-icon">&#128200;</div>
+        <h3>Get Your Full Report</h3>
+        <p>Your score, audit results, revenue opportunity, competitor overview, AI visibility, and more — instantly available.</p>
+      </div>
+    </div>
+    <div class="how-cta">
+      <button onclick="document.getElementById('hero').scrollIntoView({behavior:'smooth'})" class="btn-primary">Start My Free Audit Now</button>
+      <p class="how-note">Get up to 3 GBP Audits 100% Free</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== AI UPSELL ===== -->
+<section class="upsell" id="upsell">
+  <div class="container">
+    <div class="upsell-content">
+      <div class="upsell-badge">AI Local Marketing Manager</div>
+      <h2>Meet <span class="gradient-text assistant-name">Aria</span>, Your AI Marketing Assistant</h2>
+      <p>Knowing what's holding your online presence back is one thing, but actually fixing all the issues and performing SEO optimized work ongoing is another. Aria is our all-in-one AI marketing agent for SMBs who want more customers from their local areas.</p>
+      <div class="upsell-channels">
+        <div class="channel">
+          <div class="channel-icon">&#127760;</div>
+          <span>Google Search & Maps</span>
+        </div>
+        <div class="channel">
+          <div class="channel-icon">&#129302;</div>
+          <span>AI Overviews & Gemini</span>
+        </div>
+        <div class="channel">
+          <div class="channel-icon">&#128161;</div>
+          <span>ChatGPT & AI Platforms</span>
+        </div>
+      </div>
+      <a href="#" class="btn-primary">Learn About Aria</a>
+    </div>
+  </div>
+</section>
+
+<!-- ===== RESULTS AREA (hidden initially) ===== -->
+<main id="results-section" hidden>
+  <div class="container">
+
+    <!-- Report Header -->
+    <div class="report-header">
+      <div class="report-badge">Your Free GMB Audit Report</div>
+      <h2 id="report-business-name"></h2>
+      <p id="report-location"></p>
+      <div class="report-meta">
+        <span>Audit ID: <strong id="report-id"></strong></span>
+        <span>Generated: <strong id="report-date"></strong></span>
+      </div>
+      <div class="report-share">
+        <button type="button" id="share-btn" class="share-btn" title="Copy shareable report link">&#128279; Share Report</button>
+        <button type="button" id="pdf-btn" class="share-btn" title="Save this report as a PDF">&#128196; Download PDF</button>
+        <div class="source-badges" id="source-badges"></div>
+      </div>
+    </div>
+
+    <!-- Score -->
+    <section class="report-section score-section-rpt">
+      <div class="section-header">
+        <span class="section-num">01</span>
+        <h3>Optimization Score</h3>
+      </div>
+      <div class="score-display">
+        <div class="score-ring-wrap">
+          <svg class="score-ring" viewBox="0 0 120 120">
+            <circle class="ring-bg" cx="60" cy="60" r="52" />
+            <circle class="ring-fill" id="score-ring" cx="60" cy="60" r="52" />
+          </svg>
+          <div class="score-value">
+            <span id="score-num">0</span>
+            <span class="score-pct">/100</span>
+          </div>
+        </div>
+        <div class="score-info">
+          <div class="score-grade" id="score-grade"></div>
+          <p id="score-summary"></p>
+        </div>
+      </div>
+      <div class="gbp-checks" id="gbp-checks"></div>
+    </section>
+
+    <!-- Revenue Opportunity -->
+    <section class="report-section revenue-section">
+      <div class="section-header">
+        <span class="section-num">02</span>
+        <h3>Local Market Revenue Opportunity</h3>
+      </div>
+      <div class="revenue-grid">
+        <div class="rev-card highlight">
+          <div class="rev-label">Revenue at Stake</div>
+          <div class="rev-value" id="rev-at-stake">$0</div>
+          <div class="rev-sub">per month in your local market</div>
+        </div>
+        <div class="rev-card">
+          <div class="rev-label">Monthly Local Searches</div>
+          <div class="rev-value" id="rev-searches">0</div>
+        </div>
+        <div class="rev-card">
+          <div class="rev-label">Avg. Customer Value</div>
+          <div class="rev-value" id="rev-acv">$0</div>
+        </div>
+        <div class="rev-card">
+          <div class="rev-label">Competitor Revenue</div>
+          <div class="rev-value" id="rev-competitor">$0</div>
+          <div class="rev-sub">total spent with competitors</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Competitors -->
+    <section class="report-section competitors-section">
+      <div class="section-header">
+        <span class="section-num">03</span>
+        <h3>Top 3 Competitors</h3>
+      </div>
+      <div id="competitor-list"></div>
+      <div id="competitor-map" class="map-container"></div>
+    </section>
+
+    <!-- AI Visibility -->
+    <section class="report-section ai-section">
+      <div class="section-header">
+        <span class="section-num">04</span>
+        <h3>AI Visibility Check</h3>
+      </div>
+      <p class="section-desc">Whether your business is recommended when someone asks AI for the best in your category and city.</p>
+      <div class="ai-grid" id="ai-grid"></div>
+    </section>
+
+    <!-- Heatmaps -->
+    <section class="report-section heatmap-section">
+      <div class="section-header">
+        <span class="section-num">05</span>
+        <h3>Keyword Ranking Heatmaps</h3>
+      </div>
+      <div class="heatmap-tabs" id="heatmap-tabs"></div>
+      <div class="heatmap-container">
+        <div id="heatmap-map" class="map-container"></div>
+        <div class="heatmap-stats" id="heatmap-stats"></div>
+      </div>
+    </section>
+
+    <!-- AEO Report -->
+    <section class="report-section aeo-section">
+      <div class="section-header">
+        <span class="section-num">06</span>
+        <h3>AEO — Answer Engine Optimization</h3>
+      </div>
+      <p class="section-desc">How well your content performs in zero-click answer results, voice search, and "People Also Ask" boxes.</p>
+      <div class="score-display">
+        <div class="score-ring-wrap" style="width:100px;height:100px">
+          <svg class="score-ring" viewBox="0 0 120 120">
+            <circle class="ring-bg" cx="60" cy="60" r="52" />
+            <circle class="ring-fill" id="aeo-ring" cx="60" cy="60" r="52" />
+          </svg>
+          <div class="score-value">
+            <span id="aeo-num">0</span>
+          </div>
+        </div>
+        <div class="score-info">
+          <p id="aeo-summary"></p>
+        </div>
+      </div>
+      <div class="gbp-checks" id="aeo-checks"></div>
+    </section>
+
+    <!-- GEO Report -->
+    <section class="report-section geo-section">
+      <div class="section-header">
+        <span class="section-num">07</span>
+        <h3>GEO — Generative Engine Optimization</h3>
+      </div>
+      <p class="section-desc">How well your business entity is understood and recommended by AI/generative search engines.</p>
+      <div class="score-display">
+        <div class="score-ring-wrap" style="width:100px;height:100px">
+          <svg class="score-ring" viewBox="0 0 120 120">
+            <circle class="ring-bg" cx="60" cy="60" r="52" />
+            <circle class="ring-fill" id="geo-ring" cx="60" cy="60" r="52" />
+          </svg>
+          <div class="score-value">
+            <span id="geo-num">0</span>
+          </div>
+        </div>
+        <div class="score-info">
+          <p id="geo-summary"></p>
+        </div>
+      </div>
+      <div class="gbp-checks" id="geo-checks"></div>
+    </section>
+
+    <!-- AI Summary -->
+    <section class="report-section summary-section">
+      <div class="section-header">
+        <span class="section-num">08</span>
+        <h3>AI Summary & Suggestions</h3>
+      </div>
+      <div class="summary-card" id="summary-content"></div>
+    </section>
+
+    <!-- CTA -->
+    <div class="report-cta">
+      <h3>Want to fix all these issues automatically?</h3>
+      <p>Aria, our AI marketing assistant, can optimize your GBP, generate posts, manage reviews, and track rankings — on autopilot.</p>
+      <a href="#" class="btn-primary">Learn About Aria</a>
+    </div>
+
+  </div>
+</main>
+
+<!-- ===== LOADING OVERLAY ===== -->
+<div id="loading-overlay" hidden>
+  <div class="loading-box">
+    <div class="loading-spinner"></div>
+    <h3>Analyzing Your Business Profile</h3>
+    <div class="loading-steps">
+      <div class="load-step" data-step="1">Checking GBP completeness...</div>
+      <div class="load-step" data-step="2">Analyzing reviews & ratings...</div>
+      <div class="load-step" data-step="3">Calculating market opportunity...</div>
+      <div class="load-step" data-step="4">Identifying top competitors...</div>
+      <div class="load-step" data-step="5">Scanning AI platforms for visibility...</div>
+      <div class="load-step" data-step="6">Generating heatmap data...</div>
+      <div class="load-step" data-step="7">Running AEO answer engine analysis...</div>
+      <div class="load-step" data-step="8">Running GEO generative engine analysis...</div>
+      <div class="load-step" data-step="9">Writing your personalized summary...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== REVIEW SUBMISSION ===== -->
+<section class="review-section" id="leave-review">
+  <div class="container">
+    <div class="section-label">We Value Your Feedback</div>
+    <h2>Leave a <span class="gradient-text">Review</span></h2>
+    <p class="section-desc" style="text-align:center;max-width:500px;margin:0 auto 2rem;">4 & 5-star reviews are published immediately. 1-3 star reviews go to our management team to handle personally.</p>
+    <form id="review-form" class="review-form">
+      <div class="review-form-row">
+        <div class="form-group">
+          <label for="rev-name">Your Name</label>
+          <input type="text" id="rev-name" placeholder="John Doe" required />
+        </div>
+        <div class="form-group">
+          <label for="rev-email">Email (optional)</label>
+          <input type="email" id="rev-email" placeholder="you@example.com" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Rating</label>
+        <div class="star-select" id="star-select">
+          <span class="star-opt" data-val="1">&#9733;</span>
+          <span class="star-opt" data-val="2">&#9733;</span>
+          <span class="star-opt" data-val="3">&#9733;</span>
+          <span class="star-opt" data-val="4">&#9733;</span>
+          <span class="star-opt" data-val="5">&#9733;</span>
+        </div>
+        <input type="hidden" id="rev-rating" value="5" />
+      </div>
+      <div class="form-group">
+        <label for="rev-content">Your Review</label>
+        <textarea id="rev-content" rows="4" placeholder="Share your experience..." required></textarea>
+      </div>
+      <input type="text" name="_hp" style="display:none" tabindex="-1" autocomplete="off" />
+      <button type="submit" id="rev-submit" class="btn-primary">Submit Review</button>
+      <p id="rev-message" class="review-message"></p>
+    </form>
+    <div class="public-reviews" id="public-reviews">
+      <h3>What Others Say</h3>
+      <div id="reviews-list"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FAQ ===== -->
+<section class="faq" id="faq">
+  <div class="container">
+    <h2>Frequently Asked Questions</h2>
+    <div class="faq-list">
+      <div class="faq-item">
+        <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Is your GBP audit tool really free?</div>
+        <div class="faq-a">Yes, completely free. No credit card required. You get a full audit instantly. If you want ongoing optimization, that's where our paid plans come in.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">How does this free audit tool work?</div>
+        <div class="faq-a">Enter your business name and location. We analyze your Google Business Profile across 10 key factors, check your local competition, estimate market revenue, scan 6 AI platforms for your visibility, and generate ranking heatmaps.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Is this a white label tool for agencies?</div>
+        <div class="faq-a">Yes! We offer white-label options for agencies who want to run audits for their clients under their own brand. Contact us for details.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Will I get emailed my free GBP audit?</div>
+        <div class="faq-a">Yes, we'll send a copy to your email along with actionable tips to improve your local SEO.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FINAL CTA ===== -->
+<section class="final-cta" id="final-cta">
+  <div class="container">
+    <h2>Stop Giving Your Customers and Revenue to Competitors</h2>
+    <p>In 60 seconds you'll see your optimization score, local revenue opportunity, top competitors, AI platform visibility, and a prioritized plan to fix it — completely free.</p>
+    <div class="cta-features">
+      <span>&#10003; GBP Optimization Score</span>
+      <span>&#10003; Revenue Opportunity</span>
+      <span>&#10003; Keyword Heatmaps</span>
+      <span>&#10003; Top 3 Competitors</span>
+      <span>&#10003; AI Visibility Check</span>
+      <span>&#10003; No Credit Card Needed</span>
+    </div>
+    <button onclick="document.getElementById('hero').scrollIntoView({behavior:'smooth'})" class="btn-primary btn-large">Get Instant AI Marketing Audit</button>
+    <p class="final-note">Seriously, no credit card is required!</p>
+  </div>
+</section>
+
+<!-- ===== FOOTER ===== -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Software</h4>
+        <a href="#">Aria AI</a>
+        <a href="#">Google Reviews Software</a>
+        <a href="#">Listings Management</a>
+        <a href="#">Local SEO Reports</a>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <a href="#">Home</a>
+        <a href="#">Success Stories</a>
+        <a href="#">Partner Program</a>
+        <a href="#">Affiliate Program</a>
+      </div>
+      <div class="footer-col">
+        <h4>Resources</h4>
+        <a href="#">Blog</a>
+        <a href="#">Knowledge Base</a>
+        <a href="#">API Docs</a>
+        <a href="#">Community</a>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <a href="mailto:hello@seodominate.org" id="brand-email">hello@seodominate.org</a>
+        <a href="#">1-800-SEO-HELP</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; <span id="footer-year"></span> <span id="brand-name-footer">SEODominate</span>. All rights reserved. <a href="#">Privacy Policy</a> | <a href="#">Terms of Service</a></p>
+    </div>
+  </div>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

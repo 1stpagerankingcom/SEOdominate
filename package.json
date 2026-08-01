@@ -1,0 +1,17 @@
+{
+  "name": "seoaudit-landing",
+  "version": "1.0.0",
+  "description": "Landing page for SEO audit services powered by SeoAudit API",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "vercel-build": "echo build-complete"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^8.6.1",
+    "nodemailer": "^6.9.16"
+  }
+}

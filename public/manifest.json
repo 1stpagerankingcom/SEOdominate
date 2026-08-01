@@ -1,0 +1,13 @@
+{
+  "name": "SEODominate",
+  "short_name": "SEODominate",
+  "description": "Free Google Business Profile audit — optimization score, revenue opportunity, competitors and AI visibility in 60 seconds.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8f6ff",
+  "theme_color": "#6c5ce7",
+  "icons": [
+    { "src": "/icons/icon.svg", "type": "image/svg+xml", "sizes": "192x192" },
+    { "src": "/icons/icon.svg", "type": "image/svg+xml", "sizes": "512x512" }
+  ]
+}
