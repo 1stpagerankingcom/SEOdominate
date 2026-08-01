@@ -692,8 +692,8 @@ function gridNodes(lat, lng, radiusKm = 5) {
 async function fetchRankings(business, kw, lat, lng, cfg = CONFIG) {
   if (!cfg.dfsLogin || !cfg.dfsPassword) return null;
   const bizKey = (business || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  const grid = [];
-  for (const node of gridNodes(lat, lng)) {
+  const nodes = gridNodes(lat, lng);
+  const results = await Promise.allSettled(nodes.map(async node => {
     let rank = 20;
     try {
       const data = await fetchJson('https://api.dataforseo.com/v3/serp/google/maps/live/advanced', {
@@ -708,8 +708,9 @@ async function fetchRankings(business, kw, lat, lng, cfg = CONFIG) {
       });
       rank = hit >= 0 ? Math.min(hit + 1, 20) : 20;
     } catch (e) { console.warn('[dfs maps rank]', e.message); }
-    grid.push({ lat: node.lat, lng: node.lng, rank });
-  }
+    return { lat: node.lat, lng: node.lng, rank };
+  }));
+  const grid = results.map(r => r.status === 'fulfilled' ? r.value : { lat: r.reason && r.reason.lat, lng: r.reason && r.reason.lng, rank: 20 });
   const avg = parseFloat((grid.reduce((s, g) => s + g.rank, 0) / grid.length).toFixed(1));
   return [{ keyword: kw, grid, averageRank: avg, multiplier: parseFloat((20 / Math.max(avg, 1)).toFixed(1)), source: 'live' }];
 }
