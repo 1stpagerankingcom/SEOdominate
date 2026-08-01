@@ -1,11 +1,12 @@
 {
-  "name": "seoaudit-landing",
-  "version": "1.0.0",
-  "description": "Landing page for SEO audit services powered by SeoAudit API",
+  "name": "seodominate",
+  "version": "9.1.0",
+  "description": "SEODominate — multi-tenant white-label local SEO audit + review platform (Teable-backed, agency-resellable)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
+    "test": "node test-smoke.cjs",
     "vercel-build": "echo build-complete"
   },
   "dependencies": {
