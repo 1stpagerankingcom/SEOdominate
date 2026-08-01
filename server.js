@@ -71,12 +71,73 @@ const SESSION_SECRET = process.env.AGENCY_SESSION_SECRET || crypto.randomBytes(3
 const AGENCY_KEY_FIELDS = ['googlePlacesKey','rankNibblerKey','dfsLogin','dfsPassword','openrouterKey','llmBaseUrl','teableToken','teableAgenciesTableId','teableAuditsTableId','teableLeadsTableId','teableReviewsTableId','serpwinWebhook','followupWebhook','makeWebhook','smtpHost','smtpPort','smtpSecure','smtpUser','smtpPass','fromEmail','recaptchaSiteKey','recaptchaSecretKey'];
 const AGENCY_BRAND_FIELDS = ['name','logoUrl','color','email','assistantName','domain'];
 
-function loadAgencies() {
+function loadAgenciesLocal() {
   try { if (fs.existsSync(AGENCIES_FILE)) return JSON.parse(fs.readFileSync(AGENCIES_FILE, 'utf8')); } catch {}
   return {};
 }
 function saveAgenciesLocal(agencies) {
+  agencyCache = agencies;
   try { fs.writeFileSync(AGENCIES_FILE, JSON.stringify(agencies, null, 2), 'utf8'); } catch {}
+}
+// Teable is the single source of truth; local JSON is only an offline mirror.
+let agencyCache = null;
+let agencyCacheLoadedAt = 0;
+const AGENCY_CACHE_TTL = 60 * 1000;
+function loadAgencies() { return agencyCache || loadAgenciesLocal(); }
+function invalidateAgencyCache() { agencyCache = null; }
+async function ensureAgencies(cfg = CONFIG) {
+  if (agencyCache && Date.now() - agencyCacheLoadedAt < AGENCY_CACHE_TTL) return agencyCache;
+  if (!cfg.teableToken || !cfg.teableAgenciesTableId) {
+    agencyCache = loadAgenciesLocal();
+    agencyCacheLoadedAt = Date.now();
+    return agencyCache;
+  }
+  try {
+    const recs = await teableList(cfg, cfg.teableAgenciesTableId);
+    const map = {};
+    for (const rec of recs) {
+      const a = teableRecordToAgency(rec);
+      if (a) map[a.id] = a;
+    }
+    // Merge any local agencies not yet in Teable (migration bootstrap)
+    const local = loadAgenciesLocal();
+    for (const [id, a] of Object.entries(local)) if (!map[id]) map[id] = a;
+    agencyCache = map;
+    agencyCacheLoadedAt = Date.now();
+    saveAgenciesLocal(map);
+    return map;
+  } catch (e) {
+    console.warn('[teable agencies load]', e.message);
+    agencyCache = loadAgenciesLocal();
+    agencyCacheLoadedAt = Date.now();
+    return agencyCache;
+  }
+}
+function teableRecordToAgency(rec) {
+  const f = rec.fields || {};
+  const slug = f['Slug'] || f['Agency Slug'];
+  if (!slug) return null;
+  let keys = {};
+  const enc = f['Encrypted API Keys'] || f['API Credentials'];
+  if (enc) { try { keys = JSON.parse(decryptSecret(enc) || '{}') || {}; } catch {} }
+  return {
+    id: rec.id,
+    slug,
+    name: f['Agency Name'] || slug,
+    email: String(f['Owner Email'] || '').toLowerCase(),
+    passwordHash: f['Password Hash'] || '',
+    brand: {
+      name: f['Brand Name'] || f['Agency Name'] || slug,
+      logoUrl: f['Brand Logo URL'] || '',
+      color: f['Brand Color'] || '#6c5ce7',
+      email: f['Brand Email'] || '',
+      assistantName: f['Assistant Name'] || 'Aria',
+      domain: f['Custom Domain'] || '',
+    },
+    keys,
+    createdAt: f['Created At'] || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
 }
 function slugify(s) {
   return String(s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
@@ -187,13 +248,16 @@ function cfgFor(req, agency) {
     agencySlug: agency.slug,
   };
 }
-function resolveAgencyMiddleware(req, res, next) {
-  const agency = resolveAgency(req);
-  req.agency = agency;
-  Object.assign(req, cfgFor(req, agency));
-  next();
+async function resolveAgencyMiddleware(req, res, next) {
+  try {
+    await ensureAgencies(CONFIG);
+    const agency = resolveAgency(req);
+    req.agency = agency;
+    Object.assign(req, cfgFor(req, agency));
+    next();
+  } catch (e) { console.warn('[resolve agency]', e.message); next(); }
 }
-function requireAgency(req, res, next) {
+async function requireAgency(req, res, next) {
   const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   const aid = verifySession(token);
   if (!aid) return res.status(401).json({ error: 'Please log in to your agency dashboard.' });
@@ -1471,12 +1535,13 @@ app.get('/a/:slug', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.post('/api/agency/register', agencyAuthLimiter, (req, res) => {
+app.post('/api/agency/register', agencyAuthLimiter, async (req, res) => {
   try {
     const { name, email, password, slug } = req.body || {};
     if (!name || !email?.includes('@') || !password || password.length < 6) {
       return res.status(400).json({ error: 'Name, valid email, and a password of at least 6 characters are required.' });
     }
+    await ensureAgencies(CONFIG);
     const agencies = loadAgencies();
     const normalized = email.toLowerCase().trim();
     if (Object.values(agencies).some(a => a.email === normalized)) {
@@ -1491,16 +1556,23 @@ app.post('/api/agency/register', agencyAuthLimiter, (req, res) => {
 
     const agency = newAgency({ name: name.trim(), email: normalized, password, slug: candidate });
     agencies[agency.id] = agency;
+    const rec = await syncAgencyToTeable(agency, CONFIG);
+    // Re-key the agency under the Teable record id so cache reloads keep sessions valid
+    if (rec && rec.id) {
+      delete agencies[agency.id];
+      agency.id = rec.id;
+      agencies[rec.id] = agency;
+    }
     saveAgenciesLocal(agencies);
-    syncAgencyToTeable(agency, CONFIG).catch(() => {});
     res.json({ success: true, token: signSession(agency.id), agency: { slug: agency.slug, name: agency.brand.name } });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/agency/login', agencyAuthLimiter, (req, res) => {
+app.post('/api/agency/login', agencyAuthLimiter, async (req, res) => {
   try {
     const { email, password } = req.body || {};
     if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+    await ensureAgencies(CONFIG);
     const agency = Object.values(loadAgencies()).find(a => a.email === String(email).toLowerCase().trim());
     if (!agency || !verifyPassword(password, agency.passwordHash)) {
       return res.status(401).json({ error: 'Invalid email or password.' });
@@ -1509,7 +1581,7 @@ app.post('/api/agency/login', agencyAuthLimiter, (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.get('/api/agency/me', requireAgency, (req, res) => {
+app.get('/api/agency/me', requireAgency, async (req, res) => {
   const a = req.agencyAuth;
   res.json({
     success: true,
@@ -1523,8 +1595,9 @@ app.get('/api/agency/me', requireAgency, (req, res) => {
   });
 });
 
-app.put('/api/agency/me', requireAgency, (req, res) => {
+app.put('/api/agency/me', requireAgency, async (req, res) => {
   try {
+    await ensureAgencies(CONFIG);
     const agencies = loadAgencies();
     const a = agencies[req.agencyAuth.id];
     if (!a) return res.status(404).json({ error: 'Agency not found' });
@@ -1538,13 +1611,14 @@ app.put('/api/agency/me', requireAgency, (req, res) => {
     a.updatedAt = new Date().toISOString();
     agencies[a.id] = a;
     saveAgenciesLocal(agencies);
-    syncAgencyToTeable(a, CONFIG).catch(() => {});
+    await syncAgencyToTeable(a, CONFIG);
     res.json({ success: true, agency: { slug: a.slug, name: a.name, brand: a.brand, keys: maskedKeys(a) } });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.put('/api/agency/me/keys', requireAgency, (req, res) => {
+app.put('/api/agency/me/keys', requireAgency, async (req, res) => {
   try {
+    await ensureAgencies(CONFIG);
     const agencies = loadAgencies();
     const a = agencies[req.agencyAuth.id];
     if (!a) return res.status(404).json({ error: 'Agency not found' });
@@ -1560,12 +1634,12 @@ app.put('/api/agency/me/keys', requireAgency, (req, res) => {
     a.updatedAt = new Date().toISOString();
     agencies[a.id] = a;
     saveAgenciesLocal(agencies);
-    syncAgencyToTeable(a, CONFIG).catch(() => {});
+    await syncAgencyToTeable(a, CONFIG);
     res.json({ success: true, keys: maskedKeys(a) });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.get('/api/agency/me/audits', requireAgency, (req, res) => {
+app.get('/api/agency/me/audits', requireAgency, async (req, res) => {
   const a = req.agencyAuth;
   const all = loadAudits();
   const audits = Object.values(all)
