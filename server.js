@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
+const { generateReportPdf } = require('./pdf');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
@@ -1602,6 +1603,19 @@ app.get('/api/report/:auditId', async (req, res) => {
     const report = await getAudit(req.params.auditId);
     if (!report) return res.status(404).json({ error: 'Report not found' });
     res.json({ success: true, report });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Branded PDF download of an audit report
+app.get('/api/report/:auditId/pdf', async (req, res) => {
+  try {
+    const cfg = req.cfg || CONFIG;
+    const report = await getAudit(req.params.auditId);
+    if (!report) return res.status(404).json({ error: 'Report not found' });
+    const buf = await generateReportPdf(report, cfg);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${report.business.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-seo-audit.pdf"`);
+    res.send(buf);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

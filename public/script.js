@@ -164,8 +164,30 @@ document.getElementById('demo-btn').addEventListener('click', () => {
   form.requestSubmit();
 });
 
-document.getElementById('pdf-btn').addEventListener('click', () => {
-  window.print();
+document.getElementById('pdf-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('pdf-btn');
+  const orig = btn.innerHTML;
+  if (!lastReport) return;
+  btn.disabled = true;
+  btn.innerHTML = '&#128190; Preparing PDF...';
+  try {
+    const res = await fetch('/api/report/' + encodeURIComponent(lastReport.auditId) + '/pdf');
+    if (!res.ok) throw new Error('Could not generate PDF');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = lastReport.business.replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '-seo-audit.pdf';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    alert('Could not generate PDF: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
 });
 
 form.addEventListener('submit', async e => {
